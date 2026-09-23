@@ -1,0 +1,34 @@
+name: Sincronizar temario desde Cloudflare
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Descargar temario publicado y generar el sitio
+        run: node scripts/sync-cloudflare.mjs
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
+          CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+          LINK_SALT: ${{ secrets.LINK_SALT }}
+          PASSWORD_HASH: ${{ secrets.FALLBACK_PASSWORD_HASH }}
+      - name: Guardar el resultado en la rama "data" (no publicada)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./staging
+          publish_branch: data
+          force_orphan: true
