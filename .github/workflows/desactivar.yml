@@ -6,12 +6,16 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
 jobs:
   desactivar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Vaciar la página pública (deja solo el aviso)
+      - name: Dejar solo el aviso "No disponible"
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

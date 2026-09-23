@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -15,17 +19,20 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Descargar temario publicado y generar el sitio
+          node-version: 22
+      - name: Tests del generador
+        run: node --test scripts/sync.test.mjs
+      - name: Instalar wrangler
+        run: npm install --global wrangler@4
+      - name: Descargar el temario visible y generar el sitio cifrado
         run: node scripts/sync-cloudflare.mjs
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
           CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
-          LINK_SALT: ${{ secrets.LINK_SALT }}
-          PASSWORD_HASH: ${{ secrets.FALLBACK_PASSWORD_HASH }}
-      - name: Guardar el resultado en la rama "data" (no publicada)
+          FALLBACK_PASSWORD: ${{ secrets.FALLBACK_PASSWORD }}
+      - name: Guardar el sitio cifrado en la rama "data"
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
