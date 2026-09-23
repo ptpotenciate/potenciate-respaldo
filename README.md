@@ -24,14 +24,18 @@ falta terminal ni ordenador.
 
 ### 1. Secretos (Settings → Secrets and variables → Actions → New repository secret)
 
-| Nombre | Valor |
+Ninguno de estos valores va escrito en este repo (es público) — los reales
+están solo en el chat de la sesión que montó esto, o hay que generarlos de
+nuevo con las instrucciones de abajo.
+
+| Nombre | Qué es |
 |---|---|
-| `CF_API_TOKEN` | Token de Cloudflare de **solo lectura**: permisos `Workers KV Storage: Read` y `Workers R2 Storage: Read`, limitado a la cuenta `efba8c7869ae115e107937e38f5bce55`. Se crea en https://dash.cloudflare.com/profile/api-tokens → *Create Token* → *Custom token*. **No reutilizar** el token/credenciales de subida del Admin: este debe ser nuevo y solo de lectura. |
-| `CF_ACCOUNT_ID` | `efba8c7869ae115e107937e38f5bce55` |
-| `CF_KV_NAMESPACE_ID` | `829df1a1621d4282b1d22a5ddcaa7125` |
-| `CF_R2_BUCKET` | `potenciate-materiales` |
+| `CF_API_TOKEN` | Token de Cloudflare de **solo lectura**: permisos `Workers KV Storage: Read` y `Workers R2 Storage: Read`, limitado a la cuenta del proyecto. Se crea en https://dash.cloudflare.com/profile/api-tokens → *Create Token* → *Custom token*. **No reutilizar** el token/credenciales de subida del Admin: este debe ser nuevo y solo de lectura. |
+| `CF_ACCOUNT_ID` | El Account ID de Cloudflare del proyecto (el mismo que usa `wrangler.jsonc` en el repo principal, campo `R2_ACCOUNT_ID`). |
+| `CF_KV_NAMESPACE_ID` | El id del namespace KV `CONTENT` (en `wrangler.jsonc` del repo principal, sección `kv_namespaces`). |
+| `CF_R2_BUCKET` | El nombre del bucket R2 (en `wrangler.jsonc` del repo principal, campo `R2_BUCKET_NAME`). |
 | `LINK_SALT` | Un valor aleatorio cualquiera (solo hace que los nombres de archivo no se puedan adivinar). Se puede generar con `openssl rand -hex 16`. |
-| `FALLBACK_PASSWORD_HASH` | El hash SHA-256 de la contraseña de emergencia. **Ni el valor ni la contraseña van en este repo** (es público) — están solo en el chat de la sesión que montó esto. Si hace falta cambiar la contraseña más adelante: `printf '%s' 'la-nueva-contraseña' | sha256sum`, y ese resultado es el nuevo valor del secreto. |
+| `FALLBACK_PASSWORD_HASH` | El hash SHA-256 de la contraseña de emergencia. Si hace falta cambiarla más adelante: `printf '%s' 'la-nueva-contraseña' | sha256sum`, y ese resultado es el nuevo valor del secreto. |
 
 La contraseña de emergencia (la que se les da a las alumnas) **no se guarda
 en este repo**, solo su hash SHA-256 como secreto — así puede seguir siendo
