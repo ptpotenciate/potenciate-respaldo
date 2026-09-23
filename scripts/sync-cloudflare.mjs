@@ -212,7 +212,8 @@ async function main() {
   const tempFile = join(tmpdir(), "r2-object");
   const readObject = async (key) => {
     execFileSync("wrangler", ["r2", "object", "get", `${CF_R2_BUCKET}/${key}`, "--file", tempFile, "--remote"], {
-      stdio: ["ignore", "inherit", "inherit"],
+      // Los logs de Actions son públicos: wrangler imprime la clave de R2 y el bucket.
+      stdio: ["ignore", "ignore", "inherit"],
       env: { ...process.env, CLOUDFLARE_API_TOKEN: CF_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: CF_ACCOUNT_ID },
     });
     const data = await readFile(tempFile);
@@ -222,7 +223,6 @@ async function main() {
 
   const items = await buildSite({ catalog, password: FALLBACK_PASSWORD, readObject, outDir: "staging" });
   console.log(`Temario sincronizado: ${items.length} tema(s).`);
-  for (const item of items) console.log(` - ${item.label}`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
