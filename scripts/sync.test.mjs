@@ -4,7 +4,9 @@ import { mkdtemp, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { webcrypto } from "node:crypto";
-import { buildSite, claveDeAlumna, conAdministradora, deriveKey, extensionDe, motivoParaNoPublicar, normalizarCorreo, primerArchivoDeR2, selectMaterial } from "./sync-cloudflare.mjs";
+import vm from "node:vm";
+import { readFileSync } from "node:fs";
+import { buildIndexHtml, buildSite, claveDeAlumna, conAdministradora, deriveKey, extensionDe, motivoParaNoPublicar, normalizarCorreo, primerArchivoDeR2, selectMaterial } from "./sync-cloudflare.mjs";
 
 const CORREOS = ["Maria.Lopez@example.com", "paula@example.com", "ana@example.com"];
 
@@ -304,6 +306,44 @@ test("los correos no se escriben en ningún archivo del sitio", async () => {
       assert.equal(contenido.toLowerCase().includes(normalizarCorreo(correo)), false, `${nombre} contiene un correo`);
       assert.equal(contenido.includes(correo.split("@")[0]), false, `${nombre} contiene parte de un correo`);
     }
+  }
+});
+
+// La prueba que faltaba el primer día. El cifrado se comprobaba desde Node, así que pasaba
+// aunque la página no arrancase: un solo error de sintaxis tira el script entero, el
+// formulario se queda sin su "submit" y al pulsar el botón el navegador lo envía como un
+// formulario normal — la página se recarga en blanco y parece que la contraseña está mal.
+// Pasó de verdad: un salto de línea escrito sin escapar dentro de una cadena.
+function guionesDe(html) {
+  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((trozo) => trozo[1]);
+}
+
+function compila(codigo) {
+  try {
+    new vm.Script(codigo);
+    return null;
+  } catch (error) {
+    return error.message;
+  }
+}
+
+test("el JavaScript de la página compila: si no, no se abre aunque el cifrado esté bien", () => {
+  const html = buildIndexHtml({
+    salt: "c2FsdA==",
+    iterations: 600000,
+    manifest: "bWFuaWZpZXN0bw==",
+    sobres: ["c29icmU=", "b3Ryb3NvYnJl"],
+    generatedAt: "26 de septiembre de 2026",
+  });
+  const guiones = guionesDe(html);
+  assert.equal(guiones.length, 1, "la página tiene que llevar su script");
+  assert.equal(compila(guiones[0]), null, "el script de la página no compila");
+});
+
+test("el aviso de \"página apagada\" también compila: es el que se recarga solo al activarla", () => {
+  const html = readFileSync(new URL("../placeholder/index.html", import.meta.url), "utf8");
+  for (const codigo of guionesDe(html)) {
+    assert.equal(compila(codigo), null, "el script del aviso no compila");
   }
 });
 

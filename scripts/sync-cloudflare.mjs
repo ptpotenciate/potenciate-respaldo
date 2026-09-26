@@ -350,8 +350,7 @@ const decrypt = (key, data) => crypto.subtle.decrypt({ name: "AES-GCM", iv: data
 
 // La clave sale del correo y la contraseña juntos, así que es distinta para cada alumna.
 async function claveDeAlumna(correo, password) {
-  const frase = correo.trim().toLowerCase() + "
-" + password;
+  const frase = correo.trim().toLowerCase() + "\\n" + password;
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(frase), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey({ name: "PBKDF2", salt: bytes(SALT), iterations: ITERATIONS, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
 }
