@@ -4,15 +4,69 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Poténciate</title>
+<style>
+  :root{--ink:#302326;--muted:#776c6f;--line:#e8e1de;--wash:#f8f5f1;--accent:#9b3d5c;--accent-dark:#6a263e;--soft:#f5e9ed}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wash);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}
+  .hoja{max-width:600px;margin:0 auto;padding:40px 18px 70px;text-align:center}
+  .logo img{width:min(240px,60%);height:auto}
+  .tarjeta{background:#fff;border:1px solid var(--line);border-radius:4px;padding:32px 24px;margin-top:26px;box-shadow:0 10px 34px rgba(48,35,38,.06)}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(1.4rem,5vw,1.9rem);margin:0;text-wrap:balance}
+  p{margin:14px 0 0;color:var(--muted);font-size:.95rem}
+  .boton{display:inline-block;margin-top:22px;padding:13px 24px;border-radius:7px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;font-size:.97rem}
+  .boton:hover{background:var(--accent-dark)}
+  .aviso{margin-top:20px;padding:12px 14px;border-radius:7px;background:var(--soft);color:var(--accent-dark);font-size:.87rem}
+  .pie{margin-top:30px;color:var(--muted);font-size:.84rem}
+  .pie a{color:var(--accent-dark)}
+</style>
 </head>
-<body style="font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;line-height:1.5;">
-<h1>No disponible</h1>
-<p>Esta página de emergencia no está activa ahora mismo, porque la web principal funciona con normalidad.</p>
-<p><a href="https://oposiciones.pt-potenciate.workers.dev/aula/">Entrar en el aula de Poténciate</a></p>
-<p style="color:#666;font-size:.85rem;margin-top:40px;border-top:1px solid #ddd;padding-top:16px;">
-Si has llegado aquí porque el aula no te funciona, escribe a
-<a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a>.
-</p>
+<body>
+<div class="hoja">
+
+  <div class="logo"><img src="logo.png" alt="Poténciate" width="240" height="120"></div>
+
+  <section class="tarjeta">
+    <h1>Todo funciona con normalidad 🩷</h1>
+    <p>Esta página solo se enciende si el aula tiene algún problema. Ahora mismo no hace falta: puedes entrar como siempre.</p>
+    <a class="boton" href="https://oposiciones.pt-potenciate.workers.dev/aula/">Ir a mi aula 📚</a>
+    <p class="aviso" id="aviso">Guarda esta dirección en tus favoritos. Si algún día el aula no te carga, aquí podrás descargar tu material. 🔖</p>
+  </section>
+
+  <p class="pie">
+    ¿El aula no te funciona y sigues viendo esto? Escríbenos a
+    <a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a> y lo miramos enseguida. 🙌
+  </p>
+
+</div>
+<script>
+// El navegador guarda esta página, así que quien la abriera estando apagada seguiría viendo
+// "no hace falta" un buen rato después de encenderla. Y en una caída eso es lo peor que
+// puede pasar: el material ya está disponible y la alumna no lo ve.
+//
+// GitHub Pages no permite mandar cabeceras propias, así que se pregunta desde aquí: cada
+// veinte segundos se pide la página sin usar la copia guardada, y en cuanto aparece el
+// formulario de la contraseña se recarga sola.
+const aviso = document.querySelector("#aviso");
+
+async function comprobar() {
+  try {
+    const respuesta = await fetch("index.html?" + Date.now(), { cache: "no-store" });
+    if (!respuesta.ok) return;
+    if ((await respuesta.text()).includes('id="gate"')) {
+      aviso.textContent = "Ya puedes descargar tu material. Abriendo… 🔓";
+      window.location.reload();
+    }
+  } catch (error) {
+    // Sin conexión no hay nada que comprobar: se vuelve a intentar en la siguiente vuelta.
+  }
+}
+
+comprobar();
+setInterval(comprobar, 20000);
+</script>
 </body>
 </html>

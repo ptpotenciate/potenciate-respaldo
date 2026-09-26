@@ -3,7 +3,7 @@
 // hoy y genera en staging/ un sitio estático con TODO cifrado (AES-GCM, clave
 // derivada de la contraseña con PBKDF2). El repo es público: sin la contraseña
 // solo se ven bytes cifrados. Solo lee de Cloudflare, nunca escribe.
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash, webcrypto } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -217,30 +217,83 @@ export function buildItem(seccion, resource) {
 }
 
 export function buildIndexHtml({ salt, iterations, manifest, generatedAt }) {
+  // Todo va dentro del archivo: ni una fuente, ni una hoja de estilos, ni una imagen de
+  // fuera. Esta página se abre justo cuando algo no funciona, así que no puede depender de
+  // nada más que de sí misma.
   return `<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Poténciate · Acceso de emergencia</title>
+<style>
+  :root{--ink:#302326;--muted:#776c6f;--line:#e8e1de;--wash:#f8f5f1;--accent:#9b3d5c;--accent-dark:#6a263e;--soft:#f5e9ed}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wash);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}
+  .hoja{max-width:680px;margin:0 auto;padding:28px 18px 70px}
+  .logo{text-align:center;margin-bottom:22px}
+  .logo img{width:min(260px,62%);height:auto;display:inline-block}
+  .cabecera{background:linear-gradient(150deg,var(--accent-dark),var(--accent) 70%,#b5567a);color:#fff;border-radius:4px;padding:30px 24px;box-shadow:0 14px 40px rgba(106,38,62,.2)}
+  .cabecera h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(1.5rem,5vw,2.1rem);line-height:1.2;margin:10px 0 0;text-wrap:balance}
+  .cabecera p{margin:12px 0 0;font-size:.97rem;color:rgba(255,255,255,.94)}
+  .tarjeta{background:#fff;border:1px solid var(--line);border-radius:4px;padding:22px;margin-top:18px}
+  .tarjeta h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:1.15rem;margin:0 0 6px}
+  .tarjeta p{margin:0;color:var(--muted);font-size:.9rem}
+  label{display:block;font-size:.74rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  input{width:100%;padding:13px 14px;font-size:1.05rem;font-family:inherit;border:1px solid #d9d0cc;border-radius:7px;background:#fff;color:inherit}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .principal{margin-top:12px;width:100%;padding:13px 18px;font-size:1rem;font-family:inherit;font-weight:700;border:0;border-radius:7px;background:var(--accent);color:#fff;cursor:pointer}
+  .principal:hover{background:var(--accent-dark)}
+  .principal:disabled{opacity:.6;cursor:wait}
+  .estado{margin:12px 0 0;font-size:.9rem;min-height:1.2em}
+  .estado.mal{color:#9b2f3f;font-weight:600}
+  .nota{margin-top:16px;padding:12px 14px;border-radius:7px;background:var(--soft);color:var(--accent-dark);font-size:.86rem;line-height:1.55}
+  .grupo{margin:26px 0 0}
+  .grupo h3{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:1.05rem;margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .fila{display:flex;flex-wrap:wrap;gap:8px}
+  .archivo{flex:1 1 auto;min-width:130px;padding:11px 14px;font-size:.92rem;font-family:inherit;text-align:left;border:1px solid var(--line);border-radius:7px;background:#fff;color:inherit;cursor:pointer}
+  .archivo:hover{border-color:var(--accent);color:var(--accent-dark)}
+  .archivo:disabled{opacity:.65;cursor:wait}
+  .pie{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.84rem}
+  .pie a{color:var(--accent-dark)}
+  .vacio{margin:22px 0 0;padding:18px;border:1px dashed var(--line);border-radius:7px;color:var(--muted);text-align:center;font-size:.92rem}
+</style>
 </head>
-<body style="font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;line-height:1.5;">
-<h1>Poténciate — Material (acceso de emergencia)</h1>
-<p>Usa esta página <strong>solo si la web principal no funciona</strong>. No tiene el diseño normal a propósito: es un respaldo de solo descarga.</p>
-<p style="background:#fff8e1;border-left:3px solid #e0a800;padding:10px 12px;font-size:.9rem;">Está todo el material publicado en PDF: temarios, esquemas, ejercicios, soluciones y simulacros. <strong>Los vídeos no están aquí</strong> porque no caben; vuelven en cuanto la web esté de nuevo en pie.</p>
-<form id="gate">
-  <label for="clave">Contraseña de emergencia</label><br>
-  <input id="clave" type="password" autocomplete="current-password" required style="padding:8px;font-size:1rem;margin:8px 0;">
-  <button type="submit" style="padding:8px 16px;font-size:1rem;">Entrar</button>
-  <p id="estado" role="status"></p>
-</form>
-<div id="lista" hidden></div>
-<p style="color:#666;font-size:.85rem;margin-top:40px;border-top:1px solid #ddd;padding-top:16px;">
-Material actualizado el ${generatedAt}.<br>
-Si algo no te funciona o no tienes la contraseña, escribe a
-<a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a>.
-</p>
+<body>
+<div class="hoja">
+
+  <div class="logo"><img src="logo.png" alt="Poténciate" width="260" height="130"></div>
+
+  <header class="cabecera">
+    <h1>Sentimos mucho las molestias 🩷</h1>
+    <p>El aula está teniendo problemas y estamos trabajando para arreglarlo cuanto antes. Mientras tanto, aquí tienes tu material para seguir estudiando sin perder el ritmo. 💪</p>
+  </header>
+
+  <section class="tarjeta">
+    <h2>Entra con tu contraseña de emergencia 🔑</h2>
+    <p>Es la que te hemos enviado. Si no la encuentras, escríbenos y te la damos al momento.</p>
+    <form id="gate" style="margin-top:16px">
+      <label for="clave">Contraseña de emergencia</label>
+      <input id="clave" type="password" autocomplete="current-password" required>
+      <button type="submit" class="principal">Ver mi material</button>
+      <p class="estado" id="estado" role="status"></p>
+    </form>
+    <p class="nota">📄 Está todo el material publicado: temarios, esquemas, ejercicios, soluciones y simulacros.<br>🎬 Los vídeos no están aquí porque no caben, pero los tendrás de vuelta en cuanto el aula funcione.</p>
+  </section>
+
+  <div id="lista" hidden></div>
+
+  <p class="pie">
+    Material actualizado el ${generatedAt}.<br>
+    ¿Algo no te funciona o no tienes la contraseña? Escríbenos a
+    <a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a> y te ayudamos enseguida. 🙌
+  </p>
+
+</div>
 <script>
 const SALT = "${salt}";
 const ITERATIONS = ${iterations};
@@ -268,13 +321,16 @@ async function download(key, item, button) {
     link.download = item.name;
     document.body.append(link);
     link.click();
-    setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 60000);
-    button.textContent = original;
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    button.textContent = "Descargado ✓";
+    setTimeout(() => { button.textContent = original; }, 4000);
   } catch (error) {
-    // El nombre del tema vuelve a los pocos segundos: si se quedara el mensaje de error,
-    // la alumna ya no sabría de qué tema era ese botón.
-    button.textContent = "No se pudo descargar. Vuelve a intentarlo.";
-    setTimeout(() => { button.textContent = original; }, 6000);
+    // Cada sincronización cifra con una sal nueva. Si esta página lleva abierta desde antes
+    // de la última, su clave ya no vale para los archivos de ahora y hay que recargar.
+    const caducada = error instanceof DOMException || /OperationError/i.test(String(error));
+    button.textContent = caducada ? "Recarga la página 🔄" : "No se pudo, inténtalo otra vez";
+    setTimeout(() => { button.textContent = original; }, 8000);
   } finally {
     button.disabled = false;
   }
@@ -284,29 +340,37 @@ function render(key, items) {
   const list = document.querySelector("#lista");
   list.hidden = false;
   if (!items.length) {
-    list.textContent = "No hay material disponible ahora mismo.";
+    list.innerHTML = '<p class="vacio">Todavía no hay material publicado. En cuanto lo haya, aparecerá aquí. 🌱</p>';
     return;
   }
-  // Agrupado por tema o sección: con todo el material publicado son muchos botones, y una
-  // lista plana no se puede recorrer.
+
+  const titulo = document.createElement("h2");
+  titulo.style.cssText = "font-family:Georgia,serif;font-weight:500;font-size:1.4rem;margin:32px 0 0";
+  titulo.textContent = "Tu material 📚";
+  list.append(titulo);
+
+  // Agrupado por tema, bloque de sintaxis o simulacro: con todo publicado son muchos
+  // archivos y una lista seguida no se podría recorrer.
   let grupoActual = "";
+  let contenedor = null;
   for (const item of items) {
-    if (item.grupo && item.grupo !== grupoActual) {
+    if (item.grupo !== grupoActual) {
       grupoActual = item.grupo;
-      const titulo = document.createElement("h2");
-      titulo.textContent = grupoActual;
-      titulo.style.cssText = "font-size:1rem;margin:24px 0 8px;padding-top:12px;border-top:1px solid #eee;";
-      list.append(titulo);
+      const bloque = document.createElement("section");
+      bloque.className = "grupo";
+      const cabecera = document.createElement("h3");
+      cabecera.textContent = grupoActual;
+      contenedor = document.createElement("div");
+      contenedor.className = "fila";
+      bloque.append(cabecera, contenedor);
+      list.append(bloque);
     }
-    const row = document.createElement("p");
-    row.style.cssText = "margin:6px 0;";
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = item.label;
-    button.style.cssText = "padding:8px 12px;font-size:1rem;text-align:left;";
+    button.className = "archivo";
+    button.textContent = "⬇ " + item.label;
     button.addEventListener("click", () => download(key, item, button));
-    row.append(button);
-    list.append(row);
+    contenedor.append(button);
   }
 }
 
@@ -315,14 +379,16 @@ document.querySelector("#gate").addEventListener("submit", async (event) => {
   const status = document.querySelector("#estado");
   const submit = event.target.querySelector("button");
   submit.disabled = true;
-  status.textContent = "Comprobando…";
+  status.className = "estado";
+  status.textContent = "Comprobando… 🔓";
   try {
     const key = await deriveKey(document.querySelector("#clave").value.trim());
     const items = JSON.parse(new TextDecoder().decode(await decrypt(key, bytes(MANIFEST))));
     event.target.hidden = true;
     render(key, items);
   } catch (error) {
-    status.textContent = "Contraseña incorrecta.";
+    status.className = "estado mal";
+    status.textContent = "Esa contraseña no es. Vuelve a intentarlo, y si no la tienes escríbenos. 💬";
     submit.disabled = false;
   }
 });
@@ -332,7 +398,7 @@ document.querySelector("#gate").addEventListener("submit", async (event) => {
 `;
 }
 
-// Red de seguridad: si el respaldo anterior tenía temario y este no trae ninguno, algo ha
+// Red de seguridad: si el respaldo anterior tenía material y este no trae ninguno, algo ha
 // ido mal (KV a medias, un despiste en el Admin, un token sin permiso de R2). Mejor abortar
 // que cambiar una copia buena por una vacía, que es justo la que se necesitaría el día de
 // la caída. Devuelve el motivo, o null si se puede publicar.
@@ -377,6 +443,9 @@ export async function buildSite({ catalog, password, readObject, outDir, now = D
     generatedAt,
   }));
   await writeFile(join(outDir, ".nojekyll"), "");
+  // El logo va junto al sitio, no dentro del HTML: incrustado ocuparía 160 KB de base64 en
+  // cada carga, y como archivo aparte el navegador lo guarda una sola vez.
+  await copyFile(new URL("../assets/logo.png", import.meta.url), join(outDir, "logo.png"));
   return items;
 }
 
@@ -435,7 +504,10 @@ Revisa que CF_API_TOKEN tenga el permiso "Workers R2 Storage → Read" y que CF_
   console.log(`Material sincronizado: ${items.length} archivo(s)${anteriores ? ` (antes había ${anteriores})` : ""}.`);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Solo se ejecuta si se ha llamado a este archivo directamente. La comprobación de
+// process.argv[1] no es de adorno: sin ella, importar el módulo desde un sitio que no pase
+// argumentos lo hacía fallar al cargarse, antes de llegar a ninguna función.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error(error);
     process.exit(1);
