@@ -1,15 +1,27 @@
 # Poténciate · Página de emergencia
 
-Solo sirve para que las alumnas puedan **descargar el temario ya publicado**
+Solo sirve para que las alumnas puedan **descargar el material ya publicado**
 si la web principal (Cloudflare) no funciona. No es bonita a propósito: es un
 respaldo, no la web real.
+
+## Qué se copia y qué no
+
+Se copia **todo lo que el aula tenga publicado**: temarios, esquemas,
+ejercicios, solucionarios ya desbloqueados, ampliaciones, y las pruebas de los
+simulacros con sus soluciones. Agrupado por tema, por bloque de sintaxis, por
+curso práctico y por simulacro, igual que en el aula.
+
+**Los vídeos no.** No es una decisión de criterio: GitHub rechaza cualquier
+archivo de más de 100 MiB y sirve como máximo 1 GB por sitio en Pages. Los
+vídeos del curso pesan entre 13 y 296 MiB cada uno —solo los doce de hoy suman
+1,5 GiB—, así que ni el más grande cabría suelto ni el conjunto entero. La página
+lo dice para que nadie los busque.
 
 ## Cómo funciona
 
 - **`Sincronizar temario desde Cloudflare`** corre cada noche (y se puede
-  lanzar a mano). Lee el catálogo real y descarga el mismo temario que el
-  aula enseña ese día (tema publicado, quincena ya abierta, último temario de
-  cada tema). Lo guarda **cifrado** en la rama `data`.
+  lanzar a mano). Lee el catálogo real y descarga el mismo material que el
+  aula enseña ese día, sin vídeos. Lo guarda **cifrado** en la rama `data`.
 - **`Activar página de emergencia`** copia lo último sincronizado a
   `gh-pages`, que es lo que sirve GitHub Pages. Un clic.
 - **`Desactivar página de emergencia`** deja `gh-pages` con un aviso de
@@ -21,7 +33,7 @@ el móvil) → eliges el workflow → **Run workflow**.
 ### Por qué va cifrado
 
 Este repo es público: cualquiera puede ver todas sus ramas en github.com,
-incluidas `data` y `gh-pages`. Por eso los PDFs y la lista de temas se
+incluidas `data` y `gh-pages`. Por eso los PDF y la lista de material se
 guardan cifrados (AES-256-GCM, con una clave derivada de la contraseña con
 PBKDF2-SHA256, 600.000 iteraciones). Sin la contraseña solo hay bytes sin
 sentido. La página descifra en el navegador de la alumna cuando la escribe.

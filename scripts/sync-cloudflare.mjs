@@ -47,37 +47,124 @@ export function normalizarEstados(catalog, now) {
     }
   }
 
-  // Un tema se abre si le queda algo visible dentro, y se cierra si no.
+  // Una sección se abre si le queda algo visible dentro, y se cierra si no. Van las cuatro
+  // clases: temas, bloques de sintaxis, prácticas y simulacros. Abrir solo los temas dejaba
+  // los simulacros cerrados y no se copiaban las pruebas ni sus soluciones.
   const abiertos = new Set();
   for (const resource of copia.resources) {
-    if (resource.state === "available" && resource.topicId) abiertos.add(resource.topicId);
+    if (resource.state !== "available") continue;
+    for (const id of [resource.topicId, resource.practiceId, resource.simulationId, ...(resource.syntaxIds || [])]) {
+      if (id) abiertos.add(id);
+    }
   }
-  for (const topic of copia.topics) topic.state = abiertos.has(topic.id) ? "available" : "upcoming";
+  for (const lista of [copia.topics, copia.syntaxBlocks, copia.practices, copia.simulations]) {
+    for (const item of lista || []) item.state = abiertos.has(item.id) ? "available" : "upcoming";
+  }
   return copia;
 }
 
-// Replica lo que el aula enseña de temario por tema (studentCatalog): solo el
-// temario más reciente de cada tema, y solo si está disponible, con archivo,
-// en una quincena ya publicada y con el tema publicado.
-export function selectTemario(catalogOriginal, now = Date.now()) {
+// Qué se copia y qué no.
+//
+// Todo lo que el aula tenga publicado, MENOS los vídeos. No es una decisión de criterio:
+// GitHub rechaza cualquier archivo de más de 100 MiB y sirve como máximo 1 GB por sitio en
+// Pages. Los vídeos del curso pesan entre 13 y 296 MiB cada uno —los doce de hoy suman ya
+// 1,5 GiB— así que ni el más grande cabría suelto, ni el conjunto entero. La página lo dice
+// para que nadie los busque.
+const TIPOS_QUE_SE_COPIAN = new Set(["temario", "esquema", "ejercicio", "solucionario", "extra", "prueba", "otro"]);
+
+const ETIQUETA_DE_TIPO = { temario: "Temario", esquema: "Esquema", ejercicio: "Ejercicio", solucionario: "Solucionario", extra: "Ampliación", prueba: "Prueba", otro: "Recurso" };
+
+// Orden en que se presenta dentro de cada sección: el mismo que usa el aula.
+const ORDEN_DE_TIPO = { temario: 1, extra: 2, esquema: 3, ejercicio: 4, prueba: 4, solucionario: 5, otro: 6 };
+
+// Igual que resourceIdentity() de src/index.js: dos subidas del mismo material cuentan como
+// una sola y gana la última, para no ofrecer el mismo tema dos veces.
+function identidad(resource) {
+  const contexto = resource.topicId || resource.practiceId || resource.simulationId
+    || [...(resource.syntaxIds || [])].sort().join(",") || resource.area || "";
+  if (resource.type === "temario" || resource.type === "esquema") return `${contexto}:${resource.type}`;
+  const nombre = String(resource.originalName || "").toLocaleLowerCase("es-ES");
+  return nombre ? `${contexto}:${resource.type}:${nombre}` : resource.id;
+}
+
+// A qué sección pertenece cada recurso y cómo se llama esa sección para la alumna. Solo se
+// devuelven las secciones que el aula tiene abiertas.
+function seccionesAbiertas(catalog) {
+  const secciones = new Map();
+  for (const topic of catalog.topics || []) {
+    if (topic.state !== "available") continue;
+    const titulo = topic.titleVisible && topic.publicTitle ? topic.publicTitle : "";
+    secciones.set(topic.id, {
+      nombre: `${topic.areaLabel || topic.area} · Tema ${topic.number}${titulo ? ` — ${titulo}` : ""}`,
+      orden: [1, topic.order ?? topic.number, 0],
+    });
+  }
+  for (const block of catalog.syntaxBlocks || []) {
+    if (block.state !== "available") continue;
+    secciones.set(block.id, { nombre: `Sintaxis · ${block.publicTitle || "Bloque"}`, orden: [2, block.order ?? 0, 0] });
+  }
+  for (const practice of catalog.practices || []) {
+    if (practice.state !== "available") continue;
+    secciones.set(practice.id, { nombre: `Curso práctico · ${practice.publicTitle || practice.group || ""}`.trim(), orden: [3, practice.order ?? 0, 0] });
+  }
+  for (const simulation of catalog.simulations || []) {
+    if (simulation.state !== "available") continue;
+    secciones.set(simulation.id, { nombre: `Simulacro ${simulation.number}`, orden: [4, simulation.number ?? 0, 0] });
+  }
+  return secciones;
+}
+
+// La sección de un recurso. Un recurso de sintaxis puede pertenecer a dos bloques (CD y CI):
+// se toma el primero que esté abierto, como hace el aula al listarlo.
+function seccionDe(resource, secciones) {
+  for (const id of [resource.topicId, resource.practiceId, resource.simulationId, ...(resource.syntaxIds || [])]) {
+    if (id && secciones.has(id)) return id;
+  }
+  return "";
+}
+
+// Todo el material que el aula enseña hoy y que se puede copiar aquí. Replica las reglas de
+// studentCatalog: quincena ya llegada, sección abierta, con archivo, y una sola copia de
+// cada material (la última).
+export function selectMaterial(catalogOriginal, now = Date.now()) {
   const catalog = normalizarEstados(catalogOriginal, now);
-  const releasedPeriodIds = new Set(catalog.periods.filter((period) => isReleased(period, now)).map((period) => period.id));
-  const periodByResource = new Map();
-  for (const period of catalog.periods) for (const id of period.resourceIds || []) periodByResource.set(id, period);
+  const llegadas = new Set(catalog.periods.filter((period) => isReleased(period, now)).map((period) => period.id));
+  const quincenaDe = new Map();
+  for (const period of catalog.periods) for (const id of period.resourceIds || []) quincenaDe.set(id, period.id);
+  const secciones = seccionesAbiertas(catalog);
+
   const visible = (resource) => {
-    const period = periodByResource.get(resource.id);
-    if (!period || !releasedPeriodIds.has(period.id) || !resource.file) return false;
+    if (!TIPOS_QUE_SE_COPIAN.has(resource.type) || !resource.file) return false;
+    const quincena = quincenaDe.get(resource.id);
+    if (!quincena || !llegadas.has(quincena)) return false;
     if (resource.state !== "available") return false;
     return !resource.unlockAt || Date.parse(resource.unlockAt) <= now;
   };
-  const selected = [];
-  for (const topic of [...catalog.topics].sort((a, b) => a.order - b.order)) {
-    if (topic.state !== "available") continue;
-    const temarios = catalog.resources.filter((resource) => resource.topicId === topic.id && resource.type === "temario").sort((a, b) => a.order - b.order);
-    const latest = temarios.at(-1);
-    if (latest && visible(latest)) selected.push({ topic, resource: latest });
+
+  // Se deduplica antes de filtrar, igual que el aula: si la última subida de un material no
+  // está visible, no se ofrece la anterior en su lugar.
+  const ultimas = new Map();
+  for (const resource of [...catalog.resources].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {
+    ultimas.set(identidad(resource), resource);
   }
-  return selected;
+
+  const seleccion = [];
+  for (const resource of ultimas.values()) {
+    if (!visible(resource)) continue;
+    const seccionId = seccionDe(resource, secciones);
+    if (!seccionId) continue;
+    seleccion.push({ resource, seccion: secciones.get(seccionId) });
+  }
+
+  seleccion.sort((a, b) => {
+    for (let i = 0; i < 3; i += 1) {
+      const diferencia = (a.seccion.orden[i] || 0) - (b.seccion.orden[i] || 0);
+      if (diferencia) return diferencia;
+    }
+    if (a.seccion.nombre !== b.seccion.nombre) return a.seccion.nombre.localeCompare(b.seccion.nombre, "es");
+    return (ORDEN_DE_TIPO[a.resource.type] || 9) - (ORDEN_DE_TIPO[b.resource.type] || 9);
+  });
+  return seleccion;
 }
 
 export async function deriveKey(password, salt, iterations = PBKDF2_ITERATIONS) {
@@ -101,14 +188,30 @@ function safeFileName(value) {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9 ._-]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 150);
 }
 
-export function buildItem(topic, resource) {
-  const extension = (resource.file.split(".").pop() || "pdf").toLowerCase().replace(/[^a-z0-9]/g, "") || "pdf";
-  const areaLabel = topic.areaLabel || topic.area;
-  const title = topic.titleVisible && topic.publicTitle ? topic.publicTitle : "";
+// Extensiones de verdad, con lista cerrada. Coger "lo que venga tras el último punto" no
+// vale: muchos archivos subidos desde Drive no tienen extensión, y entonces la clave entera
+// de R2 acabab en el nombre de descarga ("Ejercicio.materialesrecurso1790248975958…").
+const EXTENSIONES = ["pdf", "doc", "docx", "odt", "ppt", "pptx", "odp", "xls", "xlsx", "txt", "rtf", "zip", "jpg", "jpeg", "png"];
+
+export function extensionDe(resource) {
+  for (const candidato of [resource.originalName, resource.file]) {
+    const encontrada = String(candidato || "").toLowerCase().match(/.([a-z0-9]{2,5})$/);
+    if (encontrada && EXTENSIONES.includes(encontrada[1])) return encontrada[1];
+  }
+  // Aquí solo se copian documentos, nunca vídeos: si no se sabe, es un PDF.
+  return "pdf";
+}
+
+export function buildItem(seccion, resource) {
+  const extension = extensionDe(resource);
+  const tipo = ETIQUETA_DE_TIPO[resource.type] || "Recurso";
   return {
+    // El nombre del archivo servido es un hash del id: en un repo público, la lista de
+    // nombres ya contaría qué hay publicado y de qué tema.
     file: `${createHash("sha256").update(resource.id).digest("hex").slice(0, 24)}.bin`,
-    label: `${areaLabel} · Tema ${topic.number}${title ? ` — ${title}` : ""}`,
-    name: `${safeFileName(`${areaLabel} - Tema ${topic.number}${title ? ` - ${title}` : ""}`)}.${extension}`,
+    grupo: seccion.nombre,
+    label: tipo,
+    name: `${safeFileName(`${seccion.nombre.replace(/ [·—] /g, " - ")} - ${tipo}`)}.${extension}`,
     type: extension === "pdf" ? "application/pdf" : "application/octet-stream",
   };
 }
@@ -123,8 +226,9 @@ export function buildIndexHtml({ salt, iterations, manifest, generatedAt }) {
 <title>Poténciate · Acceso de emergencia</title>
 </head>
 <body style="font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;line-height:1.5;">
-<h1>Poténciate — Temario (acceso de emergencia)</h1>
+<h1>Poténciate — Material (acceso de emergencia)</h1>
 <p>Usa esta página <strong>solo si la web principal no funciona</strong>. No tiene el diseño normal a propósito: es un respaldo de solo descarga.</p>
+<p style="background:#fff8e1;border-left:3px solid #e0a800;padding:10px 12px;font-size:.9rem;">Está todo el material publicado en PDF: temarios, esquemas, ejercicios, soluciones y simulacros. <strong>Los vídeos no están aquí</strong> porque no caben; vuelven en cuanto la web esté de nuevo en pie.</p>
 <form id="gate">
   <label for="clave">Contraseña de emergencia</label><br>
   <input id="clave" type="password" autocomplete="current-password" required style="padding:8px;font-size:1rem;margin:8px 0;">
@@ -133,7 +237,7 @@ export function buildIndexHtml({ salt, iterations, manifest, generatedAt }) {
 </form>
 <div id="lista" hidden></div>
 <p style="color:#666;font-size:.85rem;margin-top:40px;border-top:1px solid #ddd;padding-top:16px;">
-Temario actualizado el ${generatedAt}.<br>
+Material actualizado el ${generatedAt}.<br>
 Si algo no te funciona o no tienes la contraseña, escribe a
 <a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a>.
 </p>
@@ -180,11 +284,22 @@ function render(key, items) {
   const list = document.querySelector("#lista");
   list.hidden = false;
   if (!items.length) {
-    list.textContent = "No hay temario disponible ahora mismo.";
+    list.textContent = "No hay material disponible ahora mismo.";
     return;
   }
+  // Agrupado por tema o sección: con todo el material publicado son muchos botones, y una
+  // lista plana no se puede recorrer.
+  let grupoActual = "";
   for (const item of items) {
+    if (item.grupo && item.grupo !== grupoActual) {
+      grupoActual = item.grupo;
+      const titulo = document.createElement("h2");
+      titulo.textContent = grupoActual;
+      titulo.style.cssText = "font-size:1rem;margin:24px 0 8px;padding-top:12px;border-top:1px solid #eee;";
+      list.append(titulo);
+    }
     const row = document.createElement("p");
+    row.style.cssText = "margin:6px 0;";
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = item.label;
@@ -223,7 +338,7 @@ document.querySelector("#gate").addEventListener("submit", async (event) => {
 // la caída. Devuelve el motivo, o null si se puede publicar.
 export function motivoParaNoPublicar({ anteriores, ahora }) {
   if (Number(anteriores) > 0 && Number(ahora) === 0) {
-    return `El respaldo anterior tenía ${anteriores} tema(s) y ahora no sale ninguno. Se aborta sin tocarlo: revisa el catálogo y los permisos del token antes de volver a sincronizar.`;
+    return `El respaldo anterior tenía ${anteriores} archivo(s) y ahora no sale ninguno. Se aborta sin tocarlo: revisa el catálogo y los permisos del token antes de volver a sincronizar.`;
   }
   return null;
 }
@@ -244,9 +359,13 @@ export async function buildSite({ catalog, password, readObject, outDir, now = D
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   const items = [];
-  for (const { topic, resource } of selectTemario(catalog, now)) {
-    const item = buildItem(topic, resource);
-    await writeFile(join(outDir, item.file), await encrypt(key, await readObject(resource.file)));
+  for (const { seccion, resource } of selectMaterial(catalog, now)) {
+    const item = buildItem(seccion, resource);
+    const bytes = await readObject(resource.file);
+    // Si el objeto ya no está en R2, decirlo con nombre y apellidos. Sin esta comprobación
+    // el fallo salía como un error de cifrado y no había forma de saber qué archivo era.
+    if (!bytes || !bytes.length) throw new Error(`R2 no devolvió contenido para "${seccion.nombre} · ${item.label}". Se aborta sin publicar un respaldo incompleto.`);
+    await writeFile(join(outDir, item.file), await encrypt(key, bytes));
     items.push(item);
   }
   const manifest = await encrypt(key, new TextEncoder().encode(JSON.stringify(items)));
@@ -313,7 +432,7 @@ Revisa que CF_API_TOKEN tenga el permiso "Workers R2 Storage → Read" y que CF_
     }
   }
 
-  console.log(`Temario sincronizado: ${items.length} tema(s)${anteriores ? ` (antes había ${anteriores})` : ""}.`);
+  console.log(`Material sincronizado: ${items.length} archivo(s)${anteriores ? ` (antes había ${anteriores})` : ""}.`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

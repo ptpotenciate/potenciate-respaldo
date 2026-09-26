@@ -4,7 +4,7 @@ import { mkdtemp, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { webcrypto } from "node:crypto";
-import { buildSite, deriveKey, motivoParaNoPublicar, primerArchivoDeR2, selectTemario } from "./sync-cloudflare.mjs";
+import { buildSite, deriveKey, extensionDe, motivoParaNoPublicar, primerArchivoDeR2, selectMaterial } from "./sync-cloudflare.mjs";
 
 const NOW = Date.parse("2026-11-01T12:00:00Z");
 
@@ -37,9 +37,23 @@ function catalog(overrides = {}) {
   };
 }
 
-test("solo temario visible hoy en el aula: quincena publicada o ya llegada, tema publicado, último por tema", () => {
-  const ids = selectTemario(catalog(), NOW).map(({ resource }) => resource.id);
-  assert.deepEqual(ids, ["t1", "t2-new", "t3"]);
+test("todo el material visible hoy en el aula: quincena llegada, sección abierta, último por material", () => {
+  const ids = selectMaterial(catalog(), NOW).map(({ resource }) => resource.id);
+  // Agrupado por tema y, dentro, temario antes que ejercicio. t2-old no sale porque t2-new
+  // es la subida más reciente del mismo material.
+  assert.deepEqual(ids, ["t1", "e1", "t2-new", "t3"]);
+});
+
+test("los vídeos no se copian: no caben en GitHub", () => {
+  // No es criterio: GitHub rechaza archivos de más de 100 MiB y sirve 1 GB por sitio. Un
+  // solo vídeo del curso pasa de 100 MiB y los de hoy suman 1,5 GiB.
+  const data = catalog();
+  data.resources.push({ id: "v1", type: "video", topicId: "tema-lengua-1", state: "available", file: "materiales/v1/clase.mp4", order: 11 });
+  data.periods[0].resourceIds.push("v1");
+
+  const ids = selectMaterial(data, NOW).map(({ resource }) => resource.id);
+
+  assert.equal(ids.includes("v1"), false);
 });
 
 test("si el temario más reciente de un tema aún no es visible, no se filtra el anterior (igual que el aula)", () => {
@@ -48,7 +62,7 @@ test("si el temario más reciente de un tema aún no es visible, no se filtra el
   // estado guardado (ver normalizarEstados) y volvería a salir.
   const data = catalog();
   data.resources.find((resource) => resource.id === "t2-new").file = "";
-  const ids = selectTemario(data, NOW).map(({ resource }) => resource.id);
+  const ids = selectMaterial(data, NOW).map(({ resource }) => resource.id);
   assert.ok(!ids.includes("t2-old") && !ids.includes("t2-new"));
 });
 
@@ -62,9 +76,9 @@ test("una quincena que arranca sola por fecha se sincroniza aunque KV tenga los 
   for (const resource of data.resources) resource.state = "hidden";
   for (const topic of data.topics) topic.state = "upcoming";
 
-  const ids = selectTemario(data, NOW).map(({ resource }) => resource.id);
+  const ids = selectMaterial(data, NOW).map(({ resource }) => resource.id);
 
-  assert.deepEqual(ids, ["t1", "t2-new", "t3"], "lo mismo que con los estados al día");
+  assert.deepEqual(ids, ["t1", "e1", "t2-new", "t3"], "lo mismo que con los estados al día");
 });
 
 test("lo de una quincena que todavía no ha llegado no se sincroniza nunca", () => {
@@ -74,17 +88,21 @@ test("lo de una quincena que todavía no ha llegado no se sincroniza nunca", () 
   for (const resource of data.resources) resource.state = "available";
   for (const topic of data.topics) topic.state = "available";
 
-  const ids = selectTemario(data, NOW).map(({ resource }) => resource.id);
+  const ids = selectMaterial(data, NOW).map(({ resource }) => resource.id);
 
   assert.equal(ids.includes("t4"), false, "t4 está en una quincena de enero de 2027");
   assert.equal(ids.includes("t5"), false, "t5 está en una quincena en borrador");
 });
 
-test("excluye recursos sin archivo, ocultos o con unlockAt futuro", () => {
+test("excluye recursos sin archivo y con unlockAt futuro", () => {
   const data = catalog();
   data.resources.find((resource) => resource.id === "t1").file = "";
-  data.resources.find((resource) => resource.id === "t3").unlockAt = "2027-01-01T00:00:00Z";
-  assert.deepEqual(selectTemario(data, NOW).map(({ resource }) => resource.id), ["t2-new"]);
+  data.resources.find((resource) => resource.id === "e1").file = "";
+  // unlockAt solo frena a los solucionarios, igual que en el aula.
+  const t3 = data.resources.find((resource) => resource.id === "t3");
+  t3.type = "solucionario";
+  t3.unlockAt = "2027-01-01T00:00:00Z";
+  assert.deepEqual(selectMaterial(data, NOW).map(({ resource }) => resource.id), ["t2-new"]);
 });
 
 async function extract(html) {
@@ -100,11 +118,12 @@ test("el sitio generado solo se lee con la contraseña correcta y no contiene na
   const outDir = await mkdtemp(join(tmpdir(), "respaldo-"));
   const objects = new Map([
     ["materiales/t1/a.pdf", Buffer.from("%PDF-1.4 MARCADOR-SECRETO-T1")],
+    ["materiales/e1/e.pdf", Buffer.from("%PDF-1.4 MARCADOR-SECRETO-E1")],
     ["materiales/t2/nuevo.pdf", Buffer.from("%PDF-1.4 MARCADOR-SECRETO-T2")],
     ["materiales/t3/c.pdf", Buffer.from("%PDF-1.4 MARCADOR-SECRETO-T3")],
   ]);
   const items = await buildSite({ catalog: catalog(), password: "clave-de-prueba", readObject: async (key) => objects.get(key), outDir, now: NOW });
-  assert.equal(items.length, 3);
+  assert.equal(items.length, 4);
 
   for (const name of await readdir(outDir)) {
     const content = (await readFile(join(outDir, name))).toString("latin1");
@@ -120,15 +139,18 @@ test("el sitio generado solo se lee con la contraseña correcta y no contiene na
 
   const key = await deriveKey("clave-de-prueba", salt, iterations);
   const decoded = JSON.parse(new TextDecoder().decode(await decrypt(key, manifest)));
-  assert.deepEqual(decoded.map((item) => item.label), [
-    "Lengua · Tema 1 — La comunicación",
-    "Lengua · Tema 2 — Los enunciados",
-    "Lengua · Tema 3",
+  assert.deepEqual(decoded.map((item) => `${item.grupo} · ${item.label}`), [
+    "Lengua · Tema 1 — La comunicación · Temario",
+    "Lengua · Tema 1 — La comunicación · Ejercicio",
+    "Lengua · Tema 2 — Los enunciados · Temario",
+    "Lengua · Tema 3 · Temario",
   ]);
   const file = new Uint8Array(await readFile(join(outDir, decoded[1].file)));
-  assert.equal(Buffer.from(await decrypt(key, file)).toString(), "%PDF-1.4 MARCADOR-SECRETO-T2");
-  assert.equal(decoded[1].name, "Lengua - Tema 2 - Los enunciados.pdf");
-  assert.equal(decoded[0].name, "Lengua - Tema 1 - La comunicacion.pdf");
+  assert.equal(Buffer.from(await decrypt(key, file)).toString(), "%PDF-1.4 MARCADOR-SECRETO-E1");
+  // El nombre con el que se guarda va sin tildes: Chromium ignora el atributo download si
+  // las lleva y el archivo acaba como "download", sin extensión.
+  assert.equal(decoded[0].name, "Lengua - Tema 1 - La comunicacion - Temario.pdf");
+  assert.equal(decoded[1].name, "Lengua - Tema 1 - La comunicacion - Ejercicio.pdf");
 });
 
 test("no se sustituye un respaldo con temario por uno vacío", () => {
@@ -154,4 +176,58 @@ test("hay con qué comprobar el acceso a R2 aunque no haya temario visible", () 
   const vacio = catalog();
   for (const resource of vacio.resources) resource.file = "";
   assert.equal(primerArchivoDeR2(vacio), "");
+});
+
+test("si R2 no devuelve un archivo, se aborta diciendo cuál", async () => {
+  // Antes salía como un error de cifrado, sin decir qué archivo faltaba, y era imposible
+  // saber qué arreglar.
+  const outDir = await mkdtemp(join(tmpdir(), "respaldo-falta-"));
+  await assert.rejects(
+    () => buildSite({ catalog: catalog(), password: "x", readObject: async () => undefined, outDir, now: NOW }),
+    /R2 no devolvió contenido para "Lengua · Tema 1/,
+  );
+});
+
+test("también se copian simulacros y sintaxis, no solo temas", () => {
+  // Al principio solo se abrían los temas, así que las pruebas de los simulacros y los
+  // ejercicios de sintaxis se quedaban fuera aunque el aula los enseñara. Con el catálogo
+  // real eran 12 archivos de menos de 49.
+  const data = catalog();
+  data.simulations = [{ id: "sim-1", number: 1, state: "upcoming", order: 1 }];
+  data.syntaxBlocks = [{ id: "sx-cd", publicTitle: "Complemento directo", state: "upcoming", order: 1 }];
+  data.practices = [{ id: "pr-1", publicTitle: "Morfología", group: "Curso", state: "upcoming", order: 1 }];
+  data.resources.push(
+    { id: "p1", type: "prueba", simulationId: "sim-1", syntaxIds: [], state: "hidden", file: "materiales/p1/prueba.pdf", order: 60 },
+    { id: "x1", type: "ejercicio", syntaxIds: ["sx-cd"], state: "hidden", file: "materiales/x1/cd.pdf", order: 61 },
+    { id: "c1", type: "ejercicio", practiceId: "pr-1", syntaxIds: [], state: "hidden", file: "materiales/c1/morfo.pdf", order: 62 },
+  );
+  data.periods[0].resourceIds.push("p1", "x1", "c1");
+
+  const seleccion = selectMaterial(data, NOW);
+  const ids = seleccion.map(({ resource }) => resource.id);
+
+  assert.ok(ids.includes("p1"), "la prueba del simulacro");
+  assert.ok(ids.includes("x1"), "el ejercicio de sintaxis");
+  assert.ok(ids.includes("c1"), "el ejercicio del curso práctico");
+
+  // Y cada uno con su sección bien puesta, que es lo que ve la alumna.
+  const seccionDe = (id) => seccion(seleccion, id);
+  assert.equal(seccionDe("p1"), "Simulacro 1");
+  assert.equal(seccionDe("x1"), "Sintaxis · Complemento directo");
+  assert.equal(seccionDe("c1"), "Curso práctico · Morfología");
+});
+
+function seccion(seleccion, id) {
+  return seleccion.find(({ resource }) => resource.id === id)?.seccion.nombre;
+}
+
+test("el nombre de descarga acaba en una extensión de verdad", () => {
+  // En Drive muchos archivos se subieron sin extensión, así que "lo que venga tras el
+  // último punto" metía la clave entera de R2 en el nombre:
+  // "Ejercicio.materialesrecurso1790248975958…ejerciciosteman1mate".
+  assert.equal(extensionDe({ file: "materiales/x/2026/uuid-EJERCICIOS TEMA Nº1 MATE", originalName: "EJERCICIOS TEMA Nº1 MATE" }), "pdf");
+  assert.equal(extensionDe({ file: "materiales/x/a.pdf", originalName: "a.pdf" }), "pdf");
+  assert.equal(extensionDe({ file: "materiales/x/uuid-sin-punto", originalName: "hoja.docx" }), "docx");
+  // Un punto dentro del nombre no es una extensión.
+  assert.equal(extensionDe({ file: "materiales/x/EJERCICIO SINTAXIS - C.PRED", originalName: "EJERCICIO SINTAXIS - C.PRED" }), "pdf");
 });
