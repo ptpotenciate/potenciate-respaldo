@@ -30,6 +30,27 @@ lo dice para que nadie los busque.
 Se lanzan desde la pestaña **Actions** de este repo (o la app de GitHub en
 el móvil) → eliges el workflow → **Run workflow**.
 
+## Quién puede entrar
+
+Hace falta **el correo con el que la alumna está dada de alta en el aula, más la
+contraseña de emergencia**. La contraseña sola no sirve: si se la pasa a una
+amiga, la amiga no entra.
+
+Y se consigue **sin guardar ningún correo en este repositorio**, que es público.
+El material se cifra con una clave aleatoria, y esa clave se guarda dentro de un
+"sobre" por alumna, cifrado con su correo más la contraseña. En el repositorio
+solo hay sobres: bytes iguales por fuera, sin nada que diga de quién es cada uno.
+Al entrar se prueban todos con lo que la alumna ha escrito; si alguno se abre, es
+que su correo está de alta y la contraseña es buena.
+
+Guardar los correos con hash habría sido más simple, pero un correo se adivina
+por diccionario a partir de su hash, y eso sí serían datos personales en un repo
+público. Hay un test que comprueba que no queda ni un correo en ningún archivo.
+
+La lista sale de la base de datos en cada sincronización, así que **al dar de alta
+o de baja a una alumna no hay que tocar nada aquí**: al día siguiente ya está.
+Si quieres que valga desde ya, lanza la sincronización a mano.
+
 ### Por qué va cifrado
 
 Este repo es público: cualquiera puede ver todas sus ramas en github.com,
@@ -72,10 +93,11 @@ Ninguno de estos valores se escribe en este repo.
 
 | Nombre | Qué es |
 |---|---|
-| `CF_API_TOKEN` | Token de Cloudflare **nuevo y de solo lectura**, con dos permisos: `Account → Workers KV Storage → Read` y `Account → Workers R2 Storage → Read`, limitado a la cuenta del proyecto. Se crea en https://dash.cloudflare.com/profile/api-tokens → *Create Token* → *Create Custom Token*. No reutilizar las credenciales de subida del Admin. |
+| `CF_API_TOKEN` | Token de Cloudflare **nuevo y de solo lectura**, con tres permisos: `Account → Workers KV Storage → Read`, `Account → Workers R2 Storage → Read` y `Account → D1 → Read`, limitado a la cuenta del proyecto. Se crea en https://dash.cloudflare.com/profile/api-tokens → *Create Token* → *Create Custom Token*. No reutilizar las credenciales de subida del Admin. |
 | `CF_ACCOUNT_ID` | Account ID de Cloudflare (en `wrangler.jsonc` del repo principal, `R2_ACCOUNT_ID`). |
 | `CF_KV_NAMESPACE_ID` | Id del namespace KV del catálogo (en `wrangler.jsonc`, `kv_namespaces` → `id`). |
 | `CF_R2_BUCKET` | Nombre del bucket R2 (en `wrangler.jsonc`, `R2_BUCKET_NAME`). |
+| `CF_D1_DATABASE_ID` | Id de la base de datos D1 (en `wrangler.jsonc`, `d1_databases` → `database_id`). De ahí sale la lista de alumnas con acceso. |
 | `FALLBACK_PASSWORD` | La contraseña de emergencia que se da a las alumnas. |
 
 ### 2. Primer uso, en este orden

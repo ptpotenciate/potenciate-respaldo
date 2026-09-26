@@ -4,7 +4,9 @@ import { mkdtemp, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { webcrypto } from "node:crypto";
-import { buildSite, deriveKey, extensionDe, motivoParaNoPublicar, primerArchivoDeR2, selectMaterial } from "./sync-cloudflare.mjs";
+import { buildSite, claveDeAlumna, deriveKey, extensionDe, motivoParaNoPublicar, normalizarCorreo, primerArchivoDeR2, selectMaterial } from "./sync-cloudflare.mjs";
+
+const CORREOS = ["Maria.Lopez@example.com", "paula@example.com", "ana@example.com"];
 
 const NOW = Date.parse("2026-11-01T12:00:00Z");
 
@@ -122,7 +124,7 @@ test("el sitio generado solo se lee con la contraseña correcta y no contiene na
     ["materiales/t2/nuevo.pdf", Buffer.from("%PDF-1.4 MARCADOR-SECRETO-T2")],
     ["materiales/t3/c.pdf", Buffer.from("%PDF-1.4 MARCADOR-SECRETO-T3")],
   ]);
-  const items = await buildSite({ catalog: catalog(), password: "clave-de-prueba", readObject: async (key) => objects.get(key), outDir, now: NOW });
+  const items = await buildSite({ catalog: catalog(), password: "clave-de-prueba", correos: CORREOS, readObject: async (key) => objects.get(key), outDir, now: NOW });
   assert.equal(items.length, 4);
 
   for (const name of await readdir(outDir)) {
@@ -134,10 +136,11 @@ test("el sitio generado solo se lee con la contraseña correcta y no contiene na
   const html = await readFile(join(outDir, "index.html"), "utf8");
   const { salt, iterations, manifest } = await extract(html);
 
-  const wrongKey = await deriveKey("otra-clave", salt, iterations);
-  await assert.rejects(decrypt(wrongKey, manifest));
+  // La contraseña sola ya no abre nada: hace falta un correo dado de alta.
+  const soloClave = await deriveKey("clave-de-prueba", salt, iterations);
+  await assert.rejects(decrypt(soloClave, manifest));
 
-  const key = await deriveKey("clave-de-prueba", salt, iterations);
+  const key = await abrirConCorreo(html, "maria.lopez@example.com", "clave-de-prueba");
   const decoded = JSON.parse(new TextDecoder().decode(await decrypt(key, manifest)));
   assert.deepEqual(decoded.map((item) => `${item.grupo} · ${item.label}`), [
     "Lengua · Tema 1 — La comunicación · Temario",
@@ -183,7 +186,7 @@ test("si R2 no devuelve un archivo, se aborta diciendo cuál", async () => {
   // saber qué arreglar.
   const outDir = await mkdtemp(join(tmpdir(), "respaldo-falta-"));
   await assert.rejects(
-    () => buildSite({ catalog: catalog(), password: "x", readObject: async () => undefined, outDir, now: NOW }),
+    () => buildSite({ catalog: catalog(), password: "x", correos: CORREOS, readObject: async () => undefined, outDir, now: NOW }),
     /R2 no devolvió contenido para "Lengua · Tema 1/,
   );
 });
@@ -247,7 +250,7 @@ test("del catálogo solo sale el material: nada de lo interno se publica", async
   }
 
   const outDir = await mkdtemp(join(tmpdir(), "respaldo-fuga-"));
-  await buildSite({ catalog: data, password: "clave", outDir, now: NOW, readObject: async () => Buffer.from("%PDF-1.4 x") });
+  await buildSite({ catalog: data, password: "clave", correos: CORREOS, outDir, now: NOW, readObject: async () => Buffer.from("%PDF-1.4 x") });
 
   const prohibido = ["MARCA-PAUTAS", "MARCA-SOLUCIONARIO", "MARCA-CALENDARIO-INTERNO", "MARCA-CLAVE", "MARCA-CALENDARIO-ALUMNAS", "MARCA-DESCRIPCION", "MARCA-DRIVE", "materiales/"];
   for (const nombre of await readdir(outDir)) {
@@ -256,4 +259,60 @@ test("del catálogo solo sale el material: nada de lo interno se publica", async
       assert.equal(contenido.includes(marca), false, `${nombre} filtra "${marca}"`);
     }
   }
+});
+
+// Abre el sitio como lo haría el navegador de la alumna: deriva su clave del correo y la
+// contraseña, prueba los sobres y devuelve la clave del material.
+async function abrirConCorreo(html, correo, password) {
+  const salt = Uint8Array.from(Buffer.from(html.match(/const SALT = "([^"]+)"/)[1], "base64"));
+  const iterations = Number(html.match(/const ITERATIONS = (\d+)/)[1]);
+  const sobres = JSON.parse(html.match(/const SOBRES = (\[[^\]]*\])/)[1]);
+  const clave = await claveDeAlumna(correo, password, salt, iterations);
+  for (const sobre of sobres) {
+    try {
+      const crudo = await decrypt(clave, Uint8Array.from(Buffer.from(sobre, "base64")));
+      return webcrypto.subtle.importKey("raw", crudo, { name: "AES-GCM" }, false, ["decrypt"]);
+    } catch (error) {
+      // De otra alumna.
+    }
+  }
+  return null;
+}
+
+test("solo entra quien está dada de alta, y hacen falta las dos cosas", async () => {
+  const outDir = await mkdtemp(join(tmpdir(), "respaldo-acceso-"));
+  await buildSite({ catalog: catalog(), password: "clave-buena", correos: CORREOS, outDir, now: NOW, readObject: async () => Buffer.from("%PDF x") });
+  const html = await readFile(join(outDir, "index.html"), "utf8");
+
+  assert.ok(await abrirConCorreo(html, "paula@example.com", "clave-buena"), "una alumna de alta con la contraseña buena entra");
+  // Las mayúsculas y los espacios de más no deberían dejarla fuera.
+  assert.ok(await abrirConCorreo(html, "  MARIA.LOPEZ@Example.com ", "clave-buena"), "el correo no distingue mayúsculas");
+
+  assert.equal(await abrirConCorreo(html, "amiga@example.com", "clave-buena"), null, "un correo que no está de alta no entra ni con la contraseña");
+  assert.equal(await abrirConCorreo(html, "paula@example.com", "otra-clave"), null, "una alumna de alta no entra con la contraseña mal");
+});
+
+test("los correos no se escriben en ningún archivo del sitio", async () => {
+  // Es un repositorio público: aquí no puede quedar ni un correo, ni en claro ni con hash,
+  // porque un correo se adivina por diccionario a partir de su hash.
+  const outDir = await mkdtemp(join(tmpdir(), "respaldo-correos-"));
+  await buildSite({ catalog: catalog(), password: "clave", correos: CORREOS, outDir, now: NOW, readObject: async () => Buffer.from("%PDF x") });
+
+  for (const nombre of await readdir(outDir)) {
+    const contenido = (await readFile(join(outDir, nombre))).toString("latin1");
+    for (const correo of CORREOS) {
+      assert.equal(contenido.toLowerCase().includes(normalizarCorreo(correo)), false, `${nombre} contiene un correo`);
+      assert.equal(contenido.includes(correo.split("@")[0]), false, `${nombre} contiene parte de un correo`);
+    }
+  }
+});
+
+test("sin ninguna alumna activa no se publica nada", async () => {
+  // Publicar un sitio al que nadie puede entrar es peor que no publicarlo: parecería que el
+  // respaldo funciona y no serviría a nadie.
+  const outDir = await mkdtemp(join(tmpdir(), "respaldo-sin-alumnas-"));
+  await assert.rejects(
+    () => buildSite({ catalog: catalog(), password: "clave", correos: [], outDir, now: NOW, readObject: async () => Buffer.from("x") }),
+    /nadie podría entrar/,
+  );
 });

@@ -45,6 +45,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}
           CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
           FALLBACK_PASSWORD: ${{ secrets.FALLBACK_PASSWORD }}
       - name: Guardar el sitio cifrado en la rama "data"
         uses: peaceiris/actions-gh-pages@v4

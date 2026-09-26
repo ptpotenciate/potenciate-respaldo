@@ -167,9 +167,50 @@ export function selectMaterial(catalogOriginal, now = Date.now()) {
   return seleccion;
 }
 
+// El acceso es personal: hace falta el correo con el que está dada de alta, además de la
+// contraseña. Y se hace SIN guardar ningún correo en el repositorio, que es público.
+//
+// Cómo: el material se cifra con una clave maestra aleatoria. Para cada alumna se guarda esa
+// clave dentro de un "sobre" cifrado con una clave derivada de SU correo más la contraseña.
+// En el repositorio solo hay sobres: bytes indistinguibles entre sí, sin nada que permita
+// saber de quién es cada uno ni cuántas alumnas hay de una lista concreta. Al entrar, se
+// prueban todos los sobres con la clave que sale de lo que ha escrito; si alguno se abre, es
+// que su correo está dado de alta y la contraseña es correcta.
+//
+// Un hash de los correos habría sido más sencillo, pero un correo se adivina por diccionario
+// a partir de su hash, y eso sí serían datos personales en un repositorio público.
+export function normalizarCorreo(valor) {
+  return String(valor || "").trim().toLocaleLowerCase("es-ES");
+}
+
+export async function claveDeAlumna(correo, password, salt, iterations = PBKDF2_ITERATIONS) {
+  return deriveKey(`${normalizarCorreo(correo)}
+${password}`, salt, iterations);
+}
+
+export async function sobresParaAlumnas({ correos, password, claveMaestra, salt, iterations = PBKDF2_ITERATIONS }) {
+  const crudo = new Uint8Array(await subtle.exportKey("raw", claveMaestra));
+  const sobres = [];
+  for (const correo of correos) {
+    if (!normalizarCorreo(correo)) continue;
+    sobres.push(await encrypt(await claveDeAlumna(correo, password, salt, iterations), crudo));
+  }
+  // Se desordenan: si fueran en el orden de la base de datos, el orden diría algo.
+  for (let i = sobres.length - 1; i > 0; i -= 1) {
+    const j = webcrypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+    [sobres[i], sobres[j]] = [sobres[j], sobres[i]];
+  }
+  return sobres;
+}
+
 export async function deriveKey(password, salt, iterations = PBKDF2_ITERATIONS) {
   const base = await subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
   return subtle.deriveKey({ name: "PBKDF2", salt, iterations, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+// Clave aleatoria con la que se cifra el material. Va dentro de los sobres, nunca suelta.
+export async function nuevaClaveMaestra() {
+  return subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
 }
 
 // Formato: iv (12 bytes) || texto cifrado AES-GCM.
@@ -216,7 +257,7 @@ export function buildItem(seccion, resource) {
   };
 }
 
-export function buildIndexHtml({ salt, iterations, manifest, generatedAt }) {
+export function buildIndexHtml({ salt, iterations, manifest, sobres, generatedAt }) {
   // Todo va dentro del archivo: ni una fuente, ni una hoja de estilos, ni una imagen de
   // fuera. Esta página se abre justo cuando algo no funciona, así que no puede depender de
   // nada más que de sí misma.
@@ -274,15 +315,17 @@ export function buildIndexHtml({ salt, iterations, manifest, generatedAt }) {
   </header>
 
   <section class="tarjeta">
-    <h2>Entra con tu contraseña de emergencia 🔑</h2>
-    <p>Es la que te hemos enviado. Si no la encuentras, escríbenos y te la damos al momento.</p>
+    <h2>Entra con tus datos 🔑</h2>
+    <p>Usa el mismo correo con el que estás dada de alta en el aula, y la contraseña de emergencia que te hemos enviado. Si no la encuentras, escríbenos y te la damos al momento.</p>
     <form id="gate" style="margin-top:16px">
-      <label for="clave">Contraseña de emergencia</label>
+      <label for="correo">Tu correo</label>
+      <input id="correo" type="email" autocomplete="email" inputmode="email" required placeholder="el de tu aula">
+      <label for="clave" style="margin-top:14px">Contraseña de emergencia</label>
       <input id="clave" type="password" autocomplete="current-password" required>
       <button type="submit" class="principal">Ver mi material</button>
       <p class="estado" id="estado" role="status"></p>
     </form>
-    <p class="nota">📄 Está todo el material publicado: temarios, esquemas, ejercicios, soluciones y simulacros.<br>🎬 Los vídeos no están aquí porque no caben, pero los tendrás de vuelta en cuanto el aula funcione.</p>
+    <p class="nota">🔒 Este acceso es personal: solo funciona con tu correo, así que la contraseña no le sirve a nadie más.<br>📄 Está todo el material publicado: temarios, esquemas, ejercicios, soluciones y simulacros.<br>🎬 Los vídeos no están aquí porque no caben, pero los tendrás de vuelta en cuanto el aula funcione.</p>
   </section>
 
   <div id="lista" hidden></div>
@@ -298,13 +341,33 @@ export function buildIndexHtml({ salt, iterations, manifest, generatedAt }) {
 const SALT = "${salt}";
 const ITERATIONS = ${iterations};
 const MANIFEST = "${manifest}";
+// Un sobre por alumna. Cada uno guarda la clave del material, cifrada con el correo de esa
+// alumna más la contraseña. No hay ningún correo aquí: solo bytes, todos iguales por fuera.
+const SOBRES = ${JSON.stringify(sobres)};
 
 const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 const decrypt = (key, data) => crypto.subtle.decrypt({ name: "AES-GCM", iv: data.slice(0, 12) }, key, data.slice(12));
 
-async function deriveKey(password) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+// La clave sale del correo y la contraseña juntos, así que es distinta para cada alumna.
+async function claveDeAlumna(correo, password) {
+  const frase = correo.trim().toLowerCase() + "
+" + password;
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(frase), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey({ name: "PBKDF2", salt: bytes(SALT), iterations: ITERATIONS, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+}
+
+// Se prueban todos los sobres con esa clave: el que se abra es el suyo, y dentro está la
+// clave del material. Abrir un sobre es instantáneo, así que probar diez no se nota.
+async function abrirSobre(clavePersonal) {
+  for (const sobre of SOBRES) {
+    try {
+      const crudo = await decrypt(clavePersonal, bytes(sobre));
+      return crypto.subtle.importKey("raw", crudo, { name: "AES-GCM" }, false, ["decrypt"]);
+    } catch (error) {
+      // Ese sobre es de otra alumna: se prueba el siguiente.
+    }
+  }
+  return null;
 }
 
 async function download(key, item, button) {
@@ -382,13 +445,17 @@ document.querySelector("#gate").addEventListener("submit", async (event) => {
   status.className = "estado";
   status.textContent = "Comprobando… 🔓";
   try {
-    const key = await deriveKey(document.querySelector("#clave").value.trim());
+    const clavePersonal = await claveDeAlumna(document.querySelector("#correo").value, document.querySelector("#clave").value.trim());
+    const key = await abrirSobre(clavePersonal);
+    if (!key) throw new Error("sin acceso");
     const items = JSON.parse(new TextDecoder().decode(await decrypt(key, bytes(MANIFEST))));
     event.target.hidden = true;
     render(key, items);
   } catch (error) {
     status.className = "estado mal";
-    status.textContent = "Esa contraseña no es. Vuelve a intentarlo, y si no la tienes escríbenos. 💬";
+    // No se puede saber cuál de las dos cosas falla, y tampoco conviene decirlo: así nadie
+    // averigua qué correos están dados de alta probándolos uno a uno.
+    status.textContent = "No hemos podido entrar. Comprueba que el correo es el mismo de tu aula y que la contraseña está bien escrita. Si sigue sin funcionar, escríbenos. 💬";
     submit.disabled = false;
   }
 });
@@ -419,9 +486,16 @@ export function primerArchivoDeR2(catalog) {
   return catalog.resources.find((resource) => resource.file && resource.originalName)?.file || "";
 }
 
-export async function buildSite({ catalog, password, readObject, outDir, now = Date.now() }) {
+export async function buildSite({ catalog, password, correos = [], readObject, outDir, now = Date.now() }) {
   const salt = webcrypto.getRandomValues(new Uint8Array(16));
-  const key = await deriveKey(password, salt);
+  // El material se cifra con una clave aleatoria, y esa clave viaja dentro de un sobre por
+  // alumna. Así el acceso es personal sin guardar ningún correo en el repositorio.
+  const claveMaestra = await nuevaClaveMaestra();
+  const sobres = await sobresParaAlumnas({ correos, password, claveMaestra, salt });
+  if (!sobres.length) {
+    throw new Error("No hay ninguna alumna activa a la que dar acceso: se aborta sin publicar, porque nadie podría entrar.");
+  }
+
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   const items = [];
@@ -431,15 +505,16 @@ export async function buildSite({ catalog, password, readObject, outDir, now = D
     // Si el objeto ya no está en R2, decirlo con nombre y apellidos. Sin esta comprobación
     // el fallo salía como un error de cifrado y no había forma de saber qué archivo era.
     if (!bytes || !bytes.length) throw new Error(`R2 no devolvió contenido para "${seccion.nombre} · ${item.label}". Se aborta sin publicar un respaldo incompleto.`);
-    await writeFile(join(outDir, item.file), await encrypt(key, bytes));
+    await writeFile(join(outDir, item.file), await encrypt(claveMaestra, bytes));
     items.push(item);
   }
-  const manifest = await encrypt(key, new TextEncoder().encode(JSON.stringify(items)));
+  const manifest = await encrypt(claveMaestra, new TextEncoder().encode(JSON.stringify(items)));
   const generatedAt = new Date(now).toLocaleString("es-ES", { timeZone: "Europe/Madrid", dateStyle: "long", timeStyle: "short" });
   await writeFile(join(outDir, "index.html"), buildIndexHtml({
     salt: Buffer.from(salt).toString("base64"),
     iterations: PBKDF2_ITERATIONS,
     manifest: Buffer.from(manifest).toString("base64"),
+    sobres: sobres.map((sobre) => Buffer.from(sobre).toString("base64")),
     generatedAt,
   }));
   await writeFile(join(outDir, ".nojekyll"), "");
@@ -449,11 +524,27 @@ export async function buildSite({ catalog, password, readObject, outDir, now = D
   return items;
 }
 
+// Los correos de las alumnas activas, de la base de datos. Solo se usan para generar los
+// sobres: no se escriben en ningún archivo del sitio.
+export async function leerCorreosDeAlumnas({ accountId, databaseId, token }) {
+  const respuesta = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ sql: "SELECT email FROM users WHERE status = 'active' AND email <> ''" }),
+  });
+  if (!respuesta.ok) {
+    throw new Error(`No se pudo leer la lista de alumnas de D1 (${respuesta.status}). Revisa que CF_API_TOKEN tenga el permiso "D1 → Read" y que CF_D1_DATABASE_ID sea correcto.`);
+  }
+  const datos = await respuesta.json();
+  const filas = datos?.result?.[0]?.results || [];
+  return filas.map((fila) => fila.email).filter(Boolean);
+}
+
 async function main() {
-  const required = ["CF_API_TOKEN", "CF_ACCOUNT_ID", "CF_KV_NAMESPACE_ID", "CF_R2_BUCKET", "FALLBACK_PASSWORD"];
+  const required = ["CF_API_TOKEN", "CF_ACCOUNT_ID", "CF_KV_NAMESPACE_ID", "CF_R2_BUCKET", "CF_D1_DATABASE_ID", "FALLBACK_PASSWORD"];
   const missing = required.filter((name) => !process.env[name]);
   if (missing.length) throw new Error(`Faltan secretos del repo: ${missing.join(", ")}`);
-  const { CF_API_TOKEN, CF_ACCOUNT_ID, CF_KV_NAMESPACE_ID, CF_R2_BUCKET, FALLBACK_PASSWORD } = process.env;
+  const { CF_API_TOKEN, CF_ACCOUNT_ID, CF_KV_NAMESPACE_ID, CF_R2_BUCKET, CF_D1_DATABASE_ID, FALLBACK_PASSWORD } = process.env;
 
   const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${CF_KV_NAMESPACE_ID}/values/catalog`, {
     headers: { Authorization: `Bearer ${CF_API_TOKEN}` },
@@ -478,7 +569,12 @@ async function main() {
     return data;
   };
 
-  const items = await buildSite({ catalog, password: FALLBACK_PASSWORD, readObject, outDir: "staging" });
+  // Quién puede entrar. Los correos no se guardan en ningún archivo del sitio: solo sirven
+  // para generar los sobres, y de ahí no se pueden recuperar.
+  const correos = await leerCorreosDeAlumnas({ accountId: CF_ACCOUNT_ID, databaseId: CF_D1_DATABASE_ID, token: CF_API_TOKEN });
+  console.log(`Alumnas activas con acceso: ${correos.length}.`);
+
+  const items = await buildSite({ catalog, password: FALLBACK_PASSWORD, correos, readObject, outDir: "staging" });
 
   const anteriores = Number(process.env.TEMAS_ANTERIORES || 0);
   const motivo = motivoParaNoPublicar({ anteriores, ahora: items.length });
