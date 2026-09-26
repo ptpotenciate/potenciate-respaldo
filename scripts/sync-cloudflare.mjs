@@ -540,6 +540,25 @@ export async function leerCorreosDeAlumnas({ accountId, databaseId, token }) {
   return filas.map((fila) => fila.email).filter(Boolean);
 }
 
+// Quien administra el aula no es una fila de "users": el Worker lo reconoce por ADMIN_EMAIL.
+// Sin esto se quedaba sin sobre, y entonces no había forma de comprobar esta página desde
+// dentro: ni hoy ni el día de la caída, que es justo cuando hace falta mirarla antes de dar
+// la dirección a nadie. Va en su propio sobre, con la misma contraseña.
+//
+// De paso se quitan los repetidos: dos sobres con la misma clave no dan acceso a nada nuevo
+// y harían creer que hay una alumna más de las que hay.
+export function conAdministradora({ correos, administradora }) {
+  const vistos = new Set();
+  const lista = [];
+  for (const correo of [...correos, administradora]) {
+    const limpio = normalizarCorreo(correo);
+    if (!limpio || vistos.has(limpio)) continue;
+    vistos.add(limpio);
+    lista.push(limpio);
+  }
+  return lista;
+}
+
 async function main() {
   const required = ["CF_API_TOKEN", "CF_ACCOUNT_ID", "CF_KV_NAMESPACE_ID", "CF_R2_BUCKET", "CF_D1_DATABASE_ID", "FALLBACK_PASSWORD"];
   const missing = required.filter((name) => !process.env[name]);
@@ -571,8 +590,14 @@ async function main() {
 
   // Quién puede entrar. Los correos no se guardan en ningún archivo del sitio: solo sirven
   // para generar los sobres, y de ahí no se pueden recuperar.
-  const correos = await leerCorreosDeAlumnas({ accountId: CF_ACCOUNT_ID, databaseId: CF_D1_DATABASE_ID, token: CF_API_TOKEN });
-  console.log(`Alumnas activas con acceso: ${correos.length}.`);
+  const alumnas = await leerCorreosDeAlumnas({ accountId: CF_ACCOUNT_ID, databaseId: CF_D1_DATABASE_ID, token: CF_API_TOKEN });
+  const correos = conAdministradora({ correos: alumnas, administradora: process.env.ADMIN_EMAIL });
+  console.log(`Alumnas activas con acceso: ${alumnas.length}.`);
+  if (normalizarCorreo(process.env.ADMIN_EMAIL)) {
+    console.log("Y un sobre para quien administra: la página se puede comprobar desde dentro.");
+  } else {
+    console.log("AVISO: falta el secreto ADMIN_EMAIL, así que no podrás abrir esta página para comprobarla.");
+  }
 
   const items = await buildSite({ catalog, password: FALLBACK_PASSWORD, correos, readObject, outDir: "staging" });
 

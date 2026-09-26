@@ -4,7 +4,7 @@ import { mkdtemp, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { webcrypto } from "node:crypto";
-import { buildSite, claveDeAlumna, deriveKey, extensionDe, motivoParaNoPublicar, normalizarCorreo, primerArchivoDeR2, selectMaterial } from "./sync-cloudflare.mjs";
+import { buildSite, claveDeAlumna, conAdministradora, deriveKey, extensionDe, motivoParaNoPublicar, normalizarCorreo, primerArchivoDeR2, selectMaterial } from "./sync-cloudflare.mjs";
 
 const CORREOS = ["Maria.Lopez@example.com", "paula@example.com", "ana@example.com"];
 
@@ -305,6 +305,29 @@ test("los correos no se escriben en ningún archivo del sitio", async () => {
       assert.equal(contenido.includes(correo.split("@")[0]), false, `${nombre} contiene parte de un correo`);
     }
   }
+});
+
+test("quien administra tiene su propio sobre, aunque no sea alumna", () => {
+  // El agujero que apareció el primer día: el aula reconoce a la administradora por
+  // ADMIN_EMAIL, no por la tabla de alumnas, así que se quedaba sin sobre y no podía
+  // comprobar su propia página de emergencia.
+  const correos = conAdministradora({
+    correos: ["paula@example.com"],
+    administradora: "  Pt.Potenciate@Gmail.com ",
+  });
+  assert.deepEqual(correos, ["paula@example.com", "pt.potenciate@gmail.com"]);
+});
+
+test("sin ADMIN_EMAIL la lista sigue siendo la de las alumnas, no se cuela nada vacío", () => {
+  assert.deepEqual(conAdministradora({ correos: ["paula@example.com"], administradora: "" }), ["paula@example.com"]);
+  assert.deepEqual(conAdministradora({ correos: ["paula@example.com"], administradora: undefined }), ["paula@example.com"]);
+});
+
+test("si administra con un correo que ya es de alumna, no se duplica el sobre", () => {
+  // Dos sobres con la misma clave no dan acceso a nada nuevo y harían creer que hay una
+  // alumna más de las que hay.
+  const correos = conAdministradora({ correos: ["paula@example.com", "PAULA@example.com"], administradora: "paula@example.com" });
+  assert.deepEqual(correos, ["paula@example.com"]);
 });
 
 test("sin ninguna alumna activa no se publica nada", async () => {
