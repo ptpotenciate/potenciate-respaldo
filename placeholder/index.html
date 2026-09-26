@@ -58,7 +58,10 @@ async function comprobar() {
     if (!respuesta.ok) return;
     if ((await respuesta.text()).includes('id="gate"')) {
       aviso.textContent = "Ya puedes descargar tu material. Abriendo… 🔓";
-      window.location.reload();
+      // Se navega a una dirección con marca de tiempo en vez de recargar: GitHub Pages
+      // manda "max-age=600", así que una recarga normal puede volver a servir la copia
+      // guardada y quedarse otros diez minutos en esta misma página.
+      window.location.replace(window.location.pathname + "?abierta=" + Date.now());
     }
   } catch (error) {
     // Sin conexión no hay nada que comprobar: se vuelve a intentar en la siguiente vuelta.
