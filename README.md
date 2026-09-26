@@ -31,6 +31,27 @@ de la rama `data` (tiene que existir para poder reactivar cuando Cloudflare
 esté caído). Quien tenga la contraseña podría descifrarla aunque la página
 esté desactivada, así que si la contraseña circula de más, cámbiala (abajo).
 
+## Qué se comprueba sola cada noche
+
+La sincronización no solo copia: también avisa si algo está mal antes de que
+haga falta el respaldo.
+
+- **No sustituye una copia buena por una vacía.** Si ayer había temario y hoy no
+  sale ninguno, el workflow falla y deja intacto el respaldo anterior. Así un
+  fallo de una noche no te deja sin nada el día de la caída.
+- **Comprueba el acceso a R2 aunque no haya nada que bajar.** El permiso de R2
+  del token solo se usa cuando hay temario; mientras el curso no arranca, un
+  token mal configurado no se notaría. Se prueba a propósito para que salte hoy
+  en Actions y no el día que importa.
+- **Valida el catálogo.** Si KV devuelve algo incompleto, aborta con un mensaje
+  claro en vez de generar un respaldo a medias.
+- **No se fía del estado guardado en KV.** El Worker recalcula qué está visible
+  cada vez que lee el catálogo, pero en KV ese estado solo se reescribe cuando
+  guardas algo en el Admin. Una quincena que arranca sola por fecha deja KV con
+  los recursos aún en "oculto": esta página deriva la visibilidad de la
+  quincena, igual que el aula, para no quedarse vacía justo cuando arranca el
+  curso.
+
 ## Configuración de una sola vez
 
 ### 1. Secretos (Settings → Secrets and variables → Actions → New repository secret)

@@ -4,7 +4,7 @@ import { mkdtemp, readdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { webcrypto } from "node:crypto";
-import { buildSite, deriveKey, selectTemario } from "./sync-cloudflare.mjs";
+import { buildSite, deriveKey, motivoParaNoPublicar, primerArchivoDeR2, selectTemario } from "./sync-cloudflare.mjs";
 
 const NOW = Date.parse("2026-11-01T12:00:00Z");
 
@@ -43,10 +43,41 @@ test("solo temario visible hoy en el aula: quincena publicada o ya llegada, tema
 });
 
 test("si el temario más reciente de un tema aún no es visible, no se filtra el anterior (igual que el aula)", () => {
+  // "No visible" tiene que venir de algo que el Worker no revierta: aquí, quedarse sin
+  // archivo. Marcarlo "hidden" no vale, porque en el aula la quincena manda sobre el
+  // estado guardado (ver normalizarEstados) y volvería a salir.
   const data = catalog();
-  data.resources.find((resource) => resource.id === "t2-new").state = "hidden";
+  data.resources.find((resource) => resource.id === "t2-new").file = "";
   const ids = selectTemario(data, NOW).map(({ resource }) => resource.id);
   assert.ok(!ids.includes("t2-old") && !ids.includes("t2-new"));
+});
+
+test("una quincena que arranca sola por fecha se sincroniza aunque KV tenga los estados viejos", () => {
+  // El caso que de verdad importa y que falló contra el catálogo real: el Worker recalcula
+  // los estados al leer, pero en KV solo se reescriben cuando alguien guarda desde el
+  // Admin. El día que arranca el curso, KV tiene los recursos todavía en "hidden" y el
+  // aula los enseña igual. Si esta página creyera ese estado, bajaría cero temas justo
+  // cuando hace falta.
+  const data = catalog();
+  for (const resource of data.resources) resource.state = "hidden";
+  for (const topic of data.topics) topic.state = "upcoming";
+
+  const ids = selectTemario(data, NOW).map(({ resource }) => resource.id);
+
+  assert.deepEqual(ids, ["t1", "t2-new", "t3"], "lo mismo que con los estados al día");
+});
+
+test("lo de una quincena que todavía no ha llegado no se sincroniza nunca", () => {
+  // Al contrario: aunque KV diga "available" por un estado obsoleto, si la quincena no ha
+  // llegado no puede salir. Esta página no debe adelantar material.
+  const data = catalog();
+  for (const resource of data.resources) resource.state = "available";
+  for (const topic of data.topics) topic.state = "available";
+
+  const ids = selectTemario(data, NOW).map(({ resource }) => resource.id);
+
+  assert.equal(ids.includes("t4"), false, "t4 está en una quincena de enero de 2027");
+  assert.equal(ids.includes("t5"), false, "t5 está en una quincena en borrador");
 });
 
 test("excluye recursos sin archivo, ocultos o con unlockAt futuro", () => {
@@ -98,4 +129,29 @@ test("el sitio generado solo se lee con la contraseña correcta y no contiene na
   assert.equal(Buffer.from(await decrypt(key, file)).toString(), "%PDF-1.4 MARCADOR-SECRETO-T2");
   assert.equal(decoded[1].name, "Lengua - Tema 2 - Los enunciados.pdf");
   assert.equal(decoded[0].name, "Lengua - Tema 1 - La comunicacion.pdf");
+});
+
+test("no se sustituye un respaldo con temario por uno vacío", () => {
+  // El peor fallo posible de esta página: que una sincronización mala se lleve por delante
+  // la última copia buena, y que nadie se entere hasta el día de la caída.
+  assert.match(motivoParaNoPublicar({ anteriores: 8, ahora: 0 }), /se aborta sin tocarlo/i);
+
+  // Lo normal sí pasa: crecer, mantenerse, o empezar de cero.
+  assert.equal(motivoParaNoPublicar({ anteriores: 8, ahora: 9 }), null);
+  assert.equal(motivoParaNoPublicar({ anteriores: 8, ahora: 8 }), null);
+  assert.equal(motivoParaNoPublicar({ anteriores: 0, ahora: 0 }), null, "al principio del curso todavía no hay temario");
+  assert.equal(motivoParaNoPublicar({ anteriores: 0, ahora: 3 }), null);
+});
+
+test("hay con qué comprobar el acceso a R2 aunque no haya temario visible", () => {
+  // Si no se comprobara, un token sin permiso de R2 pasaría desapercibido mientras el curso
+  // no ha arrancado, y la página quedaría vacía justo el día que hiciera falta.
+  const data = catalog();
+  for (const resource of data.resources) resource.originalName = "algo.pdf";
+  assert.match(primerArchivoDeR2(data), new RegExp("^materiales/"));
+
+  // Y si de verdad no hay nada subido todavía, no se inventa una clave.
+  const vacio = catalog();
+  for (const resource of vacio.resources) resource.file = "";
+  assert.equal(primerArchivoDeR2(vacio), "");
 });

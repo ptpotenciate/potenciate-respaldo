@@ -24,9 +24,23 @@ jobs:
         run: node --test scripts/sync.test.mjs
       - name: Instalar wrangler
         run: npm install --global wrangler@4
+      # Cuántos temas tiene el respaldo que ya está publicado. Sirve para no sustituir una
+      # copia buena por una vacía si algo falla al leer Cloudflare. La primera vez la rama
+      # no existe todavía, y entonces cuenta cero.
+      - name: Ver el respaldo anterior
+        id: anterior
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          ref: data
+          path: anterior
+      - name: Contar el temario del respaldo anterior
+        id: contar
+        run: echo "temas=$(ls anterior/*.bin 2>/dev/null | wc -l)" >> "$GITHUB_OUTPUT"
       - name: Descargar el temario visible y generar el sitio cifrado
         run: node scripts/sync-cloudflare.mjs
         env:
+          TEMAS_ANTERIORES: ${{ steps.contar.outputs.temas }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_KV_NAMESPACE_ID: ${{ secrets.CF_KV_NAMESPACE_ID }}

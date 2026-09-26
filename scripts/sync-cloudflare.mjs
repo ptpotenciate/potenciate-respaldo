@@ -21,10 +21,46 @@ export function isReleased(entity, now) {
   return Number.isFinite(time) && time <= now;
 }
 
+// El estado guardado en KV NO es lo que el aula enseña. El Worker recalcula los estados
+// cada vez que lee el catálogo (mergePlannedStructure, en src/index.js de potenciate-web):
+// manda la quincena, no el estado guardado. Y ese estado solo se reescribe en KV cuando
+// alguien guarda algo desde el Admin.
+//
+// Consecuencia, comprobada contra el catálogo real: una quincena que arranca sola al
+// llegar su fecha deja los recursos en KV todavía como "hidden". El aula los enseña —los
+// recalcula al leer— y esta página, si creyera el estado guardado, bajaría CERO temas
+// justo el día que arranca el curso, que es cuando más falta hace.
+//
+// Así que aquí se hace lo mismo que el Worker: el estado se deriva de la quincena.
+export function normalizarEstados(catalog, now) {
+  const copia = structuredClone(catalog);
+  const bloqueado = (resource) => resource.type === "solucionario" && resource.unlockAt && Date.parse(resource.unlockAt) > now;
+  const porId = new Map(copia.resources.map((resource) => [resource.id, resource]));
+
+  for (const period of copia.periods) {
+    const llegada = isReleased(period, now);
+    for (const id of period.resourceIds || []) {
+      const resource = porId.get(id);
+      if (!resource) continue;
+      if (llegada && resource.file) resource.state = bloqueado(resource) ? "locked" : "available";
+      else resource.state = resource.type === "solucionario" ? "locked" : "hidden";
+    }
+  }
+
+  // Un tema se abre si le queda algo visible dentro, y se cierra si no.
+  const abiertos = new Set();
+  for (const resource of copia.resources) {
+    if (resource.state === "available" && resource.topicId) abiertos.add(resource.topicId);
+  }
+  for (const topic of copia.topics) topic.state = abiertos.has(topic.id) ? "available" : "upcoming";
+  return copia;
+}
+
 // Replica lo que el aula enseña de temario por tema (studentCatalog): solo el
 // temario más reciente de cada tema, y solo si está disponible, con archivo,
 // en una quincena ya publicada y con el tema publicado.
-export function selectTemario(catalog, now = Date.now()) {
+export function selectTemario(catalogOriginal, now = Date.now()) {
+  const catalog = normalizarEstados(catalogOriginal, now);
   const releasedPeriodIds = new Set(catalog.periods.filter((period) => isReleased(period, now)).map((period) => period.id));
   const periodByResource = new Map();
   for (const period of catalog.periods) for (const id of period.resourceIds || []) periodByResource.set(id, period);
@@ -96,7 +132,11 @@ export function buildIndexHtml({ salt, iterations, manifest, generatedAt }) {
   <p id="estado" role="status"></p>
 </form>
 <div id="lista" hidden></div>
-<p style="color:#666;font-size:.85rem;margin-top:40px;">Temario actualizado el ${generatedAt}.</p>
+<p style="color:#666;font-size:.85rem;margin-top:40px;border-top:1px solid #ddd;padding-top:16px;">
+Temario actualizado el ${generatedAt}.<br>
+Si algo no te funciona o no tienes la contraseña, escribe a
+<a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a>.
+</p>
 <script>
 const SALT = "${salt}";
 const ITERATIONS = ${iterations};
@@ -127,7 +167,10 @@ async function download(key, item, button) {
     setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 60000);
     button.textContent = original;
   } catch (error) {
-    button.textContent = "No se pudo descargar, inténtalo de nuevo";
+    // El nombre del tema vuelve a los pocos segundos: si se quedara el mensaje de error,
+    // la alumna ya no sabría de qué tema era ese botón.
+    button.textContent = "No se pudo descargar. Vuelve a intentarlo.";
+    setTimeout(() => { button.textContent = original; }, 6000);
   } finally {
     button.disabled = false;
   }
@@ -174,6 +217,27 @@ document.querySelector("#gate").addEventListener("submit", async (event) => {
 `;
 }
 
+// Red de seguridad: si el respaldo anterior tenía temario y este no trae ninguno, algo ha
+// ido mal (KV a medias, un despiste en el Admin, un token sin permiso de R2). Mejor abortar
+// que cambiar una copia buena por una vacía, que es justo la que se necesitaría el día de
+// la caída. Devuelve el motivo, o null si se puede publicar.
+export function motivoParaNoPublicar({ anteriores, ahora }) {
+  if (Number(anteriores) > 0 && Number(ahora) === 0) {
+    return `El respaldo anterior tenía ${anteriores} tema(s) y ahora no sale ninguno. Se aborta sin tocarlo: revisa el catálogo y los permisos del token antes de volver a sincronizar.`;
+  }
+  return null;
+}
+
+// El permiso de R2 del token solo se ejercita cuando hay temario que bajar. Mientras el
+// curso no ha arrancado no hay ninguno, así que un token al que le falte ese permiso —o que
+// haya caducado— pasaría desapercibido hasta el día que haga falta de verdad.
+//
+// Para que eso no ocurra se baja un archivo cualquiera del catálogo, solo para ver que R2
+// responde, y se descarta. No se publica ni se guarda: es una comprobación, no una copia.
+export function primerArchivoDeR2(catalog) {
+  return catalog.resources.find((resource) => resource.file && resource.originalName)?.file || "";
+}
+
 export async function buildSite({ catalog, password, readObject, outDir, now = Date.now() }) {
   const salt = webcrypto.getRandomValues(new Uint8Array(16));
   const key = await deriveKey(password, salt);
@@ -208,6 +272,11 @@ async function main() {
   });
   if (!response.ok) throw new Error(`No se pudo leer el catálogo de KV (${response.status}): ${await response.text()}`);
   const catalog = await response.json();
+  // Sin esto, un catálogo vacío o a medias reventaba más abajo con un "cannot read
+  // properties of undefined" que no dice nada a quien lea el log.
+  for (const campo of ["periods", "topics", "resources"]) {
+    if (!Array.isArray(catalog?.[campo])) throw new Error(`El catálogo de KV no trae "${campo}": se aborta sin tocar el respaldo anterior.`);
+  }
 
   const tempFile = join(tmpdir(), "r2-object");
   const readObject = async (key) => {
@@ -222,7 +291,29 @@ async function main() {
   };
 
   const items = await buildSite({ catalog, password: FALLBACK_PASSWORD, readObject, outDir: "staging" });
-  console.log(`Temario sincronizado: ${items.length} tema(s).`);
+
+  const anteriores = Number(process.env.TEMAS_ANTERIORES || 0);
+  const motivo = motivoParaNoPublicar({ anteriores, ahora: items.length });
+  if (motivo) throw new Error(motivo);
+
+  // Sin temario que bajar, el permiso de R2 no se ha probado. Se prueba aquí para que un
+  // token incompleto se vea hoy en Actions y no el día de la caída.
+  if (items.length === 0) {
+    const prueba = primerArchivoDeR2(catalog);
+    if (!prueba) {
+      console.log("Todavía no hay ningún material subido: no se ha podido comprobar el acceso a R2.");
+    } else {
+      try {
+        await readObject(prueba);
+        console.log("Acceso a R2 comprobado: el token puede descargar material.");
+      } catch (error) {
+        throw new Error(`El catálogo se lee bien, pero NO se puede descargar de R2: ${error.message}
+Revisa que CF_API_TOKEN tenga el permiso "Workers R2 Storage → Read" y que CF_R2_BUCKET sea el bucket correcto. Sin eso, el día que haya temario esta página quedaría vacía.`);
+      }
+    }
+  }
+
+  console.log(`Temario sincronizado: ${items.length} tema(s)${anteriores ? ` (antes había ${anteriores})` : ""}.`);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
