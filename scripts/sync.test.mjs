@@ -231,3 +231,29 @@ test("el nombre de descarga acaba en una extensión de verdad", () => {
   // Un punto dentro del nombre no es una extensión.
   assert.equal(extensionDe({ file: "materiales/x/EJERCICIO SINTAXIS - C.PRED", originalName: "EJERCICIO SINTAXIS - C.PRED" }), "pdf");
 });
+
+test("del catálogo solo sale el material: nada de lo interno se publica", async () => {
+  // El catálogo lleva cosas que no son de las alumnas: las pautas de corrección, los
+  // solucionarios en texto plano, el calendario interno, descripciones de trabajo y los
+  // identificadores de Drive. Este repo es público, así que conviene comprobarlo cada vez:
+  // es lo que se rompe el día que alguien añada un campo nuevo al catálogo.
+  const data = catalog();
+  data.correccion = { pautas: "MARCA-PAUTAS", solucionarios: { 1: "MARCA-SOLUCIONARIO" } };
+  data.internalCalendar = { title: "MARCA-CALENDARIO-INTERNO", file: "materiales/interno/MARCA-CLAVE.pdf" };
+  data.calendar = { title: "MARCA-CALENDARIO-ALUMNAS", file: "materiales/cal/c.pdf", state: "available" };
+  for (const resource of data.resources) {
+    resource.description = "MARCA-DESCRIPCION";
+    resource.driveFileId = "MARCA-DRIVE";
+  }
+
+  const outDir = await mkdtemp(join(tmpdir(), "respaldo-fuga-"));
+  await buildSite({ catalog: data, password: "clave", outDir, now: NOW, readObject: async () => Buffer.from("%PDF-1.4 x") });
+
+  const prohibido = ["MARCA-PAUTAS", "MARCA-SOLUCIONARIO", "MARCA-CALENDARIO-INTERNO", "MARCA-CLAVE", "MARCA-CALENDARIO-ALUMNAS", "MARCA-DESCRIPCION", "MARCA-DRIVE", "materiales/"];
+  for (const nombre of await readdir(outDir)) {
+    const contenido = (await readFile(join(outDir, nombre))).toString("latin1");
+    for (const marca of prohibido) {
+      assert.equal(contenido.includes(marca), false, `${nombre} filtra "${marca}"`);
+    }
+  }
+});
