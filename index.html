@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Poténciate · Acceso de emergencia</title>
+<style>
+  :root{--ink:#302326;--muted:#776c6f;--line:#e8e1de;--wash:#f8f5f1;--accent:#9b3d5c;--accent-dark:#6a263e;--soft:#f5e9ed}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wash);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}
+  .hoja{max-width:680px;margin:0 auto;padding:28px 18px 70px}
+  .logo{text-align:center;margin-bottom:22px}
+  .logo img{width:min(260px,62%);height:auto;display:inline-block}
+  .cabecera{background:linear-gradient(150deg,var(--accent-dark),var(--accent) 70%,#b5567a);color:#fff;border-radius:4px;padding:30px 24px;box-shadow:0 14px 40px rgba(106,38,62,.2)}
+  .cabecera h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(1.5rem,5vw,2.1rem);line-height:1.2;margin:10px 0 0;text-wrap:balance}
+  .cabecera p{margin:12px 0 0;font-size:.97rem;color:rgba(255,255,255,.94)}
+  .tarjeta{background:#fff;border:1px solid var(--line);border-radius:4px;padding:22px;margin-top:18px}
+  .tarjeta h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:1.15rem;margin:0 0 6px}
+  .tarjeta p{margin:0;color:var(--muted);font-size:.9rem}
+  label{display:block;font-size:.74rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  input{width:100%;padding:13px 14px;font-size:1.05rem;font-family:inherit;border:1px solid #d9d0cc;border-radius:7px;background:#fff;color:inherit}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .principal{margin-top:12px;width:100%;padding:13px 18px;font-size:1rem;font-family:inherit;font-weight:700;border:0;border-radius:7px;background:var(--accent);color:#fff;cursor:pointer}
+  .principal:hover{background:var(--accent-dark)}
+  .principal:disabled{opacity:.6;cursor:wait}
+  .estado{margin:12px 0 0;font-size:.9rem;min-height:1.2em}
+  .estado.mal{color:#9b2f3f;font-weight:600}
+  .nota{margin-top:16px;padding:12px 14px;border-radius:7px;background:var(--soft);color:var(--accent-dark);font-size:.86rem;line-height:1.55}
+  .grupo{margin:26px 0 0}
+  .grupo h3{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:1.05rem;margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .fila{display:flex;flex-wrap:wrap;gap:8px}
+  .archivo{flex:1 1 auto;min-width:130px;padding:11px 14px;font-size:.92rem;font-family:inherit;text-align:left;border:1px solid var(--line);border-radius:7px;background:#fff;color:inherit;cursor:pointer}
+  .archivo:hover{border-color:var(--accent);color:var(--accent-dark)}
+  .archivo:disabled{opacity:.65;cursor:wait}
+  .pie{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.84rem}
+  .pie a{color:var(--accent-dark)}
+  .vacio{margin:22px 0 0;padding:18px;border:1px dashed var(--line);border-radius:7px;color:var(--muted);text-align:center;font-size:.92rem}
+</style>
+</head>
+<body>
+<div class="hoja">
+
+  <div class="logo"><img src="logo.png" alt="Poténciate" width="260" height="130"></div>
+
+  <header class="cabecera">
+    <h1>Sentimos mucho las molestias 🩷</h1>
+    <p>El aula está teniendo problemas y estamos trabajando para arreglarlo cuanto antes. Mientras tanto, aquí tienes tu material para seguir estudiando sin perder el ritmo. 💪</p>
+  </header>
+
+  <section class="tarjeta">
+    <h2>Entra con tus datos 🔑</h2>
+    <p>Usa el mismo correo con el que estás dada de alta en el aula, y la contraseña de emergencia que te hemos enviado. Si no la encuentras, escríbenos y te la damos al momento.</p>
+    <form id="gate" style="margin-top:16px">
+      <label for="correo">Tu correo</label>
+      <input id="correo" type="email" autocomplete="email" inputmode="email" required placeholder="el de tu aula">
+      <label for="clave" style="margin-top:14px">Contraseña de emergencia</label>
+      <input id="clave" type="password" autocomplete="current-password" required>
+      <button type="submit" class="principal">Ver mi material</button>
+      <p class="estado" id="estado" role="status"></p>
+    </form>
+    <p class="nota">🔒 Este acceso es personal: solo funciona con tu correo, así que la contraseña no le sirve a nadie más.<br>📄 Está todo el material publicado: temarios, esquemas, ejercicios, soluciones y simulacros.<br>🎬 Los vídeos no están aquí porque no caben, pero los tendrás de vuelta en cuanto el aula funcione.</p>
+  </section>
+
+  <div id="lista" hidden></div>
+
+  <p class="pie">
+    Material actualizado el 10 de octubre de 2026 a las 6:11.<br>
+    ¿Algo no te funciona o no tienes la contraseña? Escríbenos a
+    <a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a> y te ayudamos enseguida. 🙌
+  </p>
+
+</div>
+<script>
+const SALT = "UWzQhwz7G/JICj7UC5my9w==";
+const ITERATIONS = 600000;
+const MANIFEST = "1w0p07E9XyAEVpEBITOkmKdvmYujFRzhNmTZohkRXNBMdF4rEH/Xgp3536z/POp5QrUh9Yk96GwWVp89Dp3hb0q1fYfpcL76PHuqxiO5y0KDB5CaQC74QEk4uRphtohfGOjEkccO/b4wGsjM5h+VW1wB7bBC6g+u8YZACendr+iFfxYVrewST7ELwRQ+JbwoPR3tieuf7x3DZQrQp6i6mr1q+fmE9SIX2lsNQL9YABnqrcYElCLYXDnCDcrWT+IM5qH4lb9aYvyloJJQvtEPfkBo9iQhnZSi4RRrnjs0M+64Hp4J1Ywfq5i8gdls2m8Y8Lb9j35TkN8Efn7Yxs/WGxHbMVXrTv9GDLZl1yL9PG0ClElTeeWYr6+UeOGm5jCz0ML9ITKdats0C4lvVyV7xhstizp2SjgWBxXsUpqIUgHy6vwpSxBuCsfFaUq0Rs6ntsHJ96HTG29VdTdzYmzPxui9kE8xiVZ+tNES2CsLgGgDCXlMcxXFSEJF83MxSXsG/LVK1mHWxqsQ4tUX2dQOf9GM0tOCLrZ8WchzQDnz+UQo5wed/MgDCoJSZBV6yguxJ1pjwJn+t/65udJ+ysbhdPzZmQwMna0dHZCgkOm3l3pAcqUYtVMyLVl0uR7VckOLzHX7VZpuPlDZpIxtKdX0wj8f8ATHdzsZUGoDZP/3Rjdrn9z9GAHOpk6txhiMlrlYlK3CHxf6q12MiCnZopRBcXIWKSYN7DJkUvqww2BAKrRQ6qOYjFomkg+sipXZ9uc7/9UukYK4C4hz9Ke2pFkZxJHKEBd0aP97HruLzJH274onR7N3Xtq6pPm2YLsytch7CJeK4qX+wl8Uce9/deOqidnXOAVute01JyCDenAWv+l4OzHyjqonjqaHPKggh1Jd7VRQ8FXFuJRS9t+QGF4adRgtxRAAkEXvcJc6JC9HA0DylQzVcHoEVX0y8Rhp5aRY5GiIfb2LcxafwfwjQ3lDP41aT3Otfr9iW9UPVpq9FtMKKpsTcVbwZGwRMyQpZQg2gZKmFw+xyANYHthSChfUxE6vmjGn/LQ3DFIQavOmrL+JGrWTxpZxrnExOtL4hregL1uFniOf8RFm4W4rOgjpll2Ou6zQqP63X+Xdb5kob7bYMwzad0ytHGziahi9AjkxnyOB1QtkVVLbMX+Fya/KZ/OWVSN/b/tJKrcbDvRqVr8hRcoyf+KYe8q4ZDKO8ydJxTPmJTARPMA607I4HPbwZWKmT0Ccq7BBenjFdwuhCAhNWng5nmGx06Hr/U5duAsZbe7qcNFFLAJpP5h5YEdDAXLOMqL/yyqOnVtreD+Urwhl5SYG5VsOQRV9b5IxCtJDXlo6";
+// Un sobre por alumna. Cada uno guarda la clave del material, cifrada con el correo de esa
+// alumna más la contraseña. No hay ningún correo aquí: solo bytes, todos iguales por fuera.
+const SOBRES = ["xird1587/6vt5FIidK8bca+WtIC0GNkVPN0JmK4bmnJIxJ5mAA3QMlrL5LZEyxEyIRxaElVrpqMyHcTu","y8+aDigib8zoMm4g3qgdyCZlOGmXf3DEMO44Sfkupoaiby5I1BUCOOAl2Z53BBrmjU5A6zb+80e+HIxZ","/40gFFHwIw4t5/AtIfNpeEatZhgONGe5Cm+K1if/NYjZdmJ88FGyXrRyCFP0MLuRkirU4RjPcDDOuvPJ","Gmwoc9mGHMqxfDNvtwruUQM/FBfCeqK5VrOWo/JK8qBaRO7VEf9wNV+KNx6SsX27LqqfrV4VYKjYPqxi","7QJmTLThTJbjeoGaftollVWINfQh5HA+/JzrV1JQFNZze30kNADv+7r8ZxHIKUFLpwptioTt2h5AZKfC","GJGaGTQouf2emvGXd71A/0x57vMgwCIKaSpz9Fg0IahdBD7ME/+W0BQY98pObPHLp33YRVhNnrMf2zzU","moqa6d8kLnx+b8j2jzGFlCX2SoEX4RevStbg4p/80ROCNh18yF4JCKjXQL64waQnr1kKZPuvDj8BBqw4","Trypvs4YqUYSnoYR1OkOEQ0RHeNIyp5Xid8A4G7y0u1g4Hmv0H+kRuYPQSJNGHGV2MVKsheRmgxwU7Er","hbQW46UVsuZqImjZtUISAMmtmzJT9KlpIM06CpswppXyMO7YekmB+Lr3LkXQaLrnPfNaZTiBceNt58oD","y+sDZuSbQM6Uyu+fPW/DK7aR3AU2zzqshGjvWj/dpruAInh8rEbXdo4CDTY0jWWbJ2a/f+8K9SLXI/Ay"];
+
+const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+const decrypt = (key, data) => crypto.subtle.decrypt({ name: "AES-GCM", iv: data.slice(0, 12) }, key, data.slice(12));
+
+// La clave sale del correo y la contraseña juntos, así que es distinta para cada alumna.
+async function claveDeAlumna(correo, password) {
+  const frase = correo.trim().toLowerCase() + "\n" + password;
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(frase), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: bytes(SALT), iterations: ITERATIONS, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+}
+
+// Se prueban todos los sobres con esa clave: el que se abra es el suyo, y dentro está la
+// clave del material. Abrir un sobre es instantáneo, así que probar diez no se nota.
+async function abrirSobre(clavePersonal) {
+  for (const sobre of SOBRES) {
+    try {
+      const crudo = await decrypt(clavePersonal, bytes(sobre));
+      return crypto.subtle.importKey("raw", crudo, { name: "AES-GCM" }, false, ["decrypt"]);
+    } catch (error) {
+      // Ese sobre es de otra alumna: se prueba el siguiente.
+    }
+  }
+  return null;
+}
+
+async function download(key, item, button) {
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Descargando…";
+  try {
+    const response = await fetch(item.file, { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const plain = await decrypt(key, new Uint8Array(await response.arrayBuffer()));
+    const url = URL.createObjectURL(new Blob([plain], { type: item.type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = item.name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    button.textContent = "Descargado ✓";
+    setTimeout(() => { button.textContent = original; }, 4000);
+  } catch (error) {
+    // Cada sincronización cifra con una sal nueva. Si esta página lleva abierta desde antes
+    // de la última, su clave ya no vale para los archivos de ahora y hay que recargar.
+    const caducada = error instanceof DOMException || /OperationError/i.test(String(error));
+    button.textContent = caducada ? "Recarga la página 🔄" : "No se pudo, inténtalo otra vez";
+    setTimeout(() => { button.textContent = original; }, 8000);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function render(key, items) {
+  const list = document.querySelector("#lista");
+  list.hidden = false;
+  if (!items.length) {
+    list.innerHTML = '<p class="vacio">Todavía no hay material publicado. En cuanto lo haya, aparecerá aquí. 🌱</p>';
+    return;
+  }
+
+  const titulo = document.createElement("h2");
+  titulo.style.cssText = "font-family:Georgia,serif;font-weight:500;font-size:1.4rem;margin:32px 0 0";
+  titulo.textContent = "Tu material 📚";
+  list.append(titulo);
+
+  // Agrupado por tema, bloque de sintaxis o simulacro: con todo publicado son muchos
+  // archivos y una lista seguida no se podría recorrer.
+  let grupoActual = "";
+  let contenedor = null;
+  for (const item of items) {
+    if (item.grupo !== grupoActual) {
+      grupoActual = item.grupo;
+      const bloque = document.createElement("section");
+      bloque.className = "grupo";
+      const cabecera = document.createElement("h3");
+      cabecera.textContent = grupoActual;
+      contenedor = document.createElement("div");
+      contenedor.className = "fila";
+      bloque.append(cabecera, contenedor);
+      list.append(bloque);
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "archivo";
+    button.textContent = "⬇ " + item.label;
+    button.addEventListener("click", () => download(key, item, button));
+    contenedor.append(button);
+  }
+}
+
+document.querySelector("#gate").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const status = document.querySelector("#estado");
+  const submit = event.target.querySelector("button");
+  submit.disabled = true;
+  status.className = "estado";
+  status.textContent = "Comprobando… 🔓";
+  try {
+    const clavePersonal = await claveDeAlumna(document.querySelector("#correo").value, document.querySelector("#clave").value.trim());
+    const key = await abrirSobre(clavePersonal);
+    if (!key) throw new Error("sin acceso");
+    const items = JSON.parse(new TextDecoder().decode(await decrypt(key, bytes(MANIFEST))));
+    event.target.hidden = true;
+    render(key, items);
+  } catch (error) {
+    status.className = "estado mal";
+    // No se puede saber cuál de las dos cosas falla, y tampoco conviene decirlo: así nadie
+    // averigua qué correos están dados de alta probándolos uno a uno.
+    status.textContent = "No hemos podido entrar. Comprueba que el correo es el mismo de tu aula y que la contraseña está bien escrita. Si sigue sin funcionar, escríbenos. 💬";
+    submit.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
