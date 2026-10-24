@@ -302,6 +302,9 @@ export function buildIndexHtml({ salt, iterations, manifest, sobres, generatedAt
   .pie{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.84rem}
   .pie a{color:var(--accent-dark)}
   .vacio{margin:22px 0 0;padding:18px;border:1px dashed var(--line);border-radius:7px;color:var(--muted);text-align:center;font-size:.92rem}
+  .vuelve{margin:0 0 18px;padding:14px 16px;border-radius:7px;background:#e3f1e8;color:#2f6f55;text-align:center;font-size:.95rem}
+  .vuelve a{display:block;margin-top:10px;padding:12px 18px;border-radius:7px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700}
+  [hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -309,9 +312,14 @@ export function buildIndexHtml({ salt, iterations, manifest, sobres, generatedAt
 
   <div class="logo"><img src="logo.png" alt="Poténciate" width="260" height="130"></div>
 
+  <div id="aula-vuelve" class="vuelve" role="status" hidden>
+    <strong>¡El aula ya funciona desde tu conexión! 🎉</strong>
+    <a href="https://potenciateoposiciones.com/aula/">Volver al aula</a>
+  </div>
+
   <header class="cabecera">
     <h1>Sentimos mucho las molestias 🩷</h1>
-    <p>El aula está teniendo problemas y estamos trabajando para arreglarlo cuanto antes. Mientras tanto, aquí tienes tu material para seguir estudiando sin perder el ritmo. 💪</p>
+    <p>Ahora mismo no se puede entrar al aula desde tu conexión (puede ser un problema del aula o un bloqueo de tu compañía durante un partido de fútbol). Mientras tanto, aquí tienes tu material para seguir estudiando sin perder el ritmo. 💪 En cuanto el aula vuelva a responder, aquí arriba te saldrá un aviso para volver.</p>
   </header>
 
   <section class="tarjeta">
@@ -338,6 +346,30 @@ export function buildIndexHtml({ salt, iterations, manifest, sobres, generatedAt
 
 </div>
 <script>
+// Cada 45 segundos se comprueba, desde el propio dispositivo, si el aula ya responde. Si sí,
+// sale un aviso arriba con el botón para volver (no se cambia de página sola: puede estar a
+// medias de una descarga). Se pide /cdn-cgi/trace, que contesta Cloudflare sin tocar el Worker,
+// en modo «no-cors»: solo importa si hay conexión, no lo que devuelve.
+const SONDA_AULA = "https://potenciateoposiciones.com/cdn-cgi/trace";
+async function aulaResponde() {
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), 8000);
+  try {
+    await fetch(SONDA_AULA + "?t=" + Date.now(), { mode: "no-cors", cache: "no-store", credentials: "omit", signal: control.signal });
+    return true;
+  } catch (error) {
+    return false;
+  } finally {
+    clearTimeout(corte);
+  }
+}
+async function vigilarAula() {
+  if (document.hidden) return;
+  if (await aulaResponde()) document.querySelector("#aula-vuelve").hidden = false;
+}
+vigilarAula();
+setInterval(vigilarAula, 45000);
+
 const SALT = "${salt}";
 const ITERATIONS = ${iterations};
 const MANIFEST = "${manifest}";

@@ -340,6 +340,18 @@ test("el JavaScript de la página compila: si no, no se abre aunque el cifrado e
   assert.equal(compila(guiones[0]), null, "el script de la página no compila");
 });
 
+test("la página activa vigila si el aula vuelve a responder y avisa con un botón, sin cambiar de página sola", () => {
+  const html = buildIndexHtml({ salt: "c2FsdA==", iterations: 600000, manifest: "bWFuaWZpZXN0bw==", sobres: ["c29icmU="], generatedAt: "26 de septiembre de 2026" });
+  assert.match(html, /<div id="aula-vuelve"[^>]*\bhidden>/, "el aviso empieza oculto");
+  assert.match(html, /href="https:\/\/potenciateoposiciones\.com\/aula\/">Volver al aula/);
+  assert.match(html, /fetch\(SONDA_AULA[\s\S]*?mode: "no-cors"/, "solo comprueba si hay conexión");
+  assert.match(html, /credentials: "omit"/, "sin cookies ni datos de la alumna");
+  assert.match(html, /setInterval\(vigilarAula, 45000\)/);
+  assert.doesNotMatch(html, /location\.(replace|assign|href\s*=)/, "no cambia de página sola: puede estar a medias de una descarga");
+  assert.equal(guionesDe(html).length, 1, "un único script, y compila");
+  assert.equal(compila(guionesDe(html)[0]), null);
+});
+
 test("el aviso de \"página apagada\" también compila: es el que se recarga solo al activarla", () => {
   const html = readFileSync(new URL("../placeholder/index.html", import.meta.url), "utf8");
   for (const codigo of guionesDe(html)) {

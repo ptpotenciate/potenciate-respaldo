@@ -78,6 +78,9 @@ no le afecta), y es la dirección que se da a las alumnas para entrar:
 - Si no responde (bloqueo, conexión cortada o sin internet), enseña qué hacer: **descargar el
   material** (`/respaldo/`, esta misma página de emergencia), **entregar el simulacro por correo**
   a simulacros@, volver a comprobar (lo hace sola cada 30 s) o usar otra red / la app 1.1.1.1.
+- Ya dentro del respaldo (`/respaldo/`), la página **vuelve a comprobar cada 45 segundos** si el
+  aula responde y, en cuanto responde, enseña arriba un aviso verde con el botón «Volver al aula».
+  No cambia de página sola: la alumna puede estar a medias de una descarga.
 - No pide ninguna contraseña. `?demo=bloqueada` enseña la pantalla del bloqueo sin esperar a un
   partido.
 
