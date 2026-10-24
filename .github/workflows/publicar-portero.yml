@@ -1,6 +1,6 @@
 name: Publicar el portero
 
-# Publica (o actualiza) el portero de entrar.potenciateoposiciones.com sin cambiar si el
+# Publica (o actualiza) el portero de aula.potenciateoposiciones.com sin cambiar si el
 # respaldo está activado o desactivado: conserva lo que ya haya en /respaldo/. Es la primera
 # que hay que lanzar, y se vuelve a lanzar si cambia algo en portero/.
 # Antes hay que crear el registro DNS (ver README: «El portero»).

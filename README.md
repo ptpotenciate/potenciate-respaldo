@@ -66,7 +66,7 @@ de la rama `data` (tiene que existir para poder reactivar cuando Cloudflare
 esté caído). Quien tenga la contraseña podría descifrarla aunque la página
 esté desactivada, así que si la contraseña circula de más, cámbiala (abajo).
 
-## El portero (entrar.potenciateoposiciones.com)
+## El portero (aula.potenciateoposiciones.com)
 
 Durante los partidos de fútbol, las operadoras españolas bloquean direcciones de Cloudflare, y
 con ellas el aula, **solo en las conexiones afectadas** (puede que en casa vaya y en el móvil no).
@@ -84,6 +84,11 @@ no le afecta), y es la dirección que se da a las alumnas para entrar:
 - No pide ninguna contraseña. `?demo=bloqueada` enseña la pantalla del bloqueo sin esperar a un
   partido.
 
+La dirección de siempre, `potenciateoposiciones.com/aula`, sigue funcionando, pero está en
+Cloudflare y es justo la que bloquean: nada que se ponga allí puede redirigir durante un bloqueo.
+Por eso el portero tiene su propia dirección, lo más parecida posible
+(`aula.potenciateoposiciones.com`), y hay que pedir a las alumnas que la guarden.
+
 Estructura publicada en `gh-pages`: `/` el portero, `/respaldo/` la página de emergencia (activa o
 el aviso «No disponible»), `/CNAME`. La monta `scripts/montar-pages.mjs`; **Activar**,
 **Desactivar** y **Publicar el portero** la usan, así que el portero está siempre y lo único que
@@ -92,18 +97,18 @@ cambia es lo que hay en `/respaldo/`.
 ### Puesta en marcha (una sola vez)
 
 1. **DNS** (Cloudflare → potenciateoposiciones.com → DNS → Records → Add record):
-   tipo `CNAME`, nombre `entrar`, destino `ptpotenciate.github.io`, y **proxy desactivado
+   tipo `CNAME`, nombre `aula`, destino `ptpotenciate.github.io`, y **proxy desactivado
    («Solo DNS», nube gris)**. Con la nube naranja pasaría por Cloudflare y se bloquearía igual.
 2. Actions → **Publicar el portero** → Run workflow.
-3. Settings → Pages: debe poner el dominio `entrar.potenciateoposiciones.com`; espera a que el
+3. Settings → Pages: debe poner el dominio `aula.potenciateoposiciones.com`; espera a que el
    comprobador de DNS salga en verde y marca **Enforce HTTPS** (el certificado tarda de unos
    minutos a una hora).
 4. Para que «Descargar mi material» funcione durante un bloqueo, el respaldo tiene que estar
    **activo**: Actions → **Activar página de emergencia**. Con el portero ya no hace falta
    apagarlo (sigue pidiendo correo + contraseña de emergencia, y los datos cifrados ya eran
    públicos en la rama `data`). Si lo dejas apagado, el botón llevará al aviso «No disponible».
-5. Abre `https://entrar.potenciateoposiciones.com/` en el móvil y prueba también
-   `https://entrar.potenciateoposiciones.com/?demo=bloqueada`.
+5. Abre `https://aula.potenciateoposiciones.com/` en el móvil y prueba también
+   `https://aula.potenciateoposiciones.com/?demo=bloqueada`.
 
 Al poner el dominio propio, la dirección antigua `ptpotenciate.github.io/potenciate-respaldo/`
 pasa a redirigir al portero.

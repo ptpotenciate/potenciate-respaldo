@@ -4,7 +4,7 @@
 //                     la tiene bloqueada, enseña las alternativas
 //   /respaldo/        la página de emergencia con el material cifrado, o el aviso «No disponible»
 //                     si está desactivada
-//   /CNAME            entrar.potenciateoposiciones.com
+//   /CNAME            aula.potenciateoposiciones.com
 //
 // Lo usan los tres workflows que publican (activar, desactivar y publicar-portero), para que el
 // portero esté siempre y lo único que cambie entre ellos sea lo que hay en /respaldo/.
@@ -17,7 +17,7 @@ import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const DOMINIO = "entrar.potenciateoposiciones.com";
+export const DOMINIO = "aula.potenciateoposiciones.com";
 
 // El respaldo que ya está publicado: el de /respaldo/ (distribución actual) o, si es la primera
 // vez, el de la raíz (distribución anterior, cuando la raíz era la página de emergencia).
