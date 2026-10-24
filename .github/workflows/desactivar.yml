@@ -15,10 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Dejar solo el aviso "No disponible"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Montar el sitio (portero en la raíz, solo el aviso "No disponible" en /respaldo/)
+        run: node scripts/montar-pages.mjs --respaldo placeholder --salida publicar
+      - name: Publicar
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./placeholder
+          publish_dir: ./publicar
           publish_branch: gh-pages
           force_orphan: true

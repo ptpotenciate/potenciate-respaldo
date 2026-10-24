@@ -1,7 +1,7 @@
 # Poténciate · Página de emergencia
 
 Solo sirve para que las alumnas puedan **descargar el material ya publicado**
-si la web principal (Cloudflare) no funciona. No es bonita a propósito: es un
+si la web principal (Cloudflare) no funciona o su operadora la bloquea (ver «El portero»). No es bonita a propósito: es un
 respaldo, no la web real.
 
 ## Qué se copia y qué no
@@ -23,9 +23,11 @@ lo dice para que nadie los busque.
   lanzar a mano). Lee el catálogo real y descarga el mismo material que el
   aula enseña ese día, sin vídeos. Lo guarda **cifrado** en la rama `data`.
 - **`Activar página de emergencia`** copia lo último sincronizado a
-  `gh-pages`, que es lo que sirve GitHub Pages. Un clic.
-- **`Desactivar página de emergencia`** deja `gh-pages` con un aviso de
+  `gh-pages` (en `/respaldo/`), que es lo que sirve GitHub Pages. Un clic.
+- **`Desactivar página de emergencia`** deja `/respaldo/` con un aviso de
   "No disponible" y sin archivos. Otro clic.
+- **`Publicar el portero`** publica o actualiza el portero sin cambiar si el
+  respaldo está activado o no.
 
 Se lanzan desde la pestaña **Actions** de este repo (o la app de GitHub en
 el móvil) → eliges el workflow → **Run workflow**.
@@ -63,6 +65,45 @@ Consecuencia: **desactivar quita la página, pero no borra la copia cifrada**
 de la rama `data` (tiene que existir para poder reactivar cuando Cloudflare
 esté caído). Quien tenga la contraseña podría descifrarla aunque la página
 esté desactivada, así que si la contraseña circula de más, cámbiala (abajo).
+
+## El portero (entrar.potenciateoposiciones.com)
+
+Durante los partidos de fútbol, las operadoras españolas bloquean direcciones de Cloudflare, y
+con ellas el aula, **solo en las conexiones afectadas** (puede que en casa vaya y en el móvil no).
+El portero es una página que vive aquí, en GitHub Pages (fuera de Cloudflare, así que ese bloqueo
+no le afecta), y es la dirección que se da a las alumnas para entrar:
+
+- Al abrirla, **desde el propio dispositivo de la alumna**, comprueba si el aula responde
+  (`/cdn-cgi/trace`, que contesta Cloudflare sin tocar el Worker). Si responde, la lleva al aula.
+- Si no responde (bloqueo, conexión cortada o sin internet), enseña qué hacer: **descargar el
+  material** (`/respaldo/`, esta misma página de emergencia), **entregar el simulacro por correo**
+  a simulacros@, volver a comprobar (lo hace sola cada 30 s) o usar otra red / la app 1.1.1.1.
+- No pide ninguna contraseña. `?demo=bloqueada` enseña la pantalla del bloqueo sin esperar a un
+  partido.
+
+Estructura publicada en `gh-pages`: `/` el portero, `/respaldo/` la página de emergencia (activa o
+el aviso «No disponible»), `/CNAME`. La monta `scripts/montar-pages.mjs`; **Activar**,
+**Desactivar** y **Publicar el portero** la usan, así que el portero está siempre y lo único que
+cambia es lo que hay en `/respaldo/`.
+
+### Puesta en marcha (una sola vez)
+
+1. **DNS** (Cloudflare → potenciateoposiciones.com → DNS → Records → Add record):
+   tipo `CNAME`, nombre `entrar`, destino `ptpotenciate.github.io`, y **proxy desactivado
+   («Solo DNS», nube gris)**. Con la nube naranja pasaría por Cloudflare y se bloquearía igual.
+2. Actions → **Publicar el portero** → Run workflow.
+3. Settings → Pages: debe poner el dominio `entrar.potenciateoposiciones.com`; espera a que el
+   comprobador de DNS salga en verde y marca **Enforce HTTPS** (el certificado tarda de unos
+   minutos a una hora).
+4. Para que «Descargar mi material» funcione durante un bloqueo, el respaldo tiene que estar
+   **activo**: Actions → **Activar página de emergencia**. Con el portero ya no hace falta
+   apagarlo (sigue pidiendo correo + contraseña de emergencia, y los datos cifrados ya eran
+   públicos en la rama `data`). Si lo dejas apagado, el botón llevará al aviso «No disponible».
+5. Abre `https://entrar.potenciateoposiciones.com/` en el móvil y prueba también
+   `https://entrar.potenciateoposiciones.com/?demo=bloqueada`.
+
+Al poner el dominio propio, la dirección antigua `ptpotenciate.github.io/potenciate-respaldo/`
+pasa a redirigir al portero.
 
 ## Qué se comprueba sola cada noche
 

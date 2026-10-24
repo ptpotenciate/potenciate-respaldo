@@ -1,0 +1,44 @@
+name: Publicar el portero
+
+# Publica (o actualiza) el portero de entrar.potenciateoposiciones.com sin cambiar si el
+# respaldo está activado o desactivado: conserva lo que ya haya en /respaldo/. Es la primera
+# que hay que lanzar, y se vuelve a lanzar si cambia algo en portero/.
+# Antes hay que crear el registro DNS (ver README: «El portero»).
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Tests del montaje
+        run: node --test scripts/pages.test.mjs
+      # La primera vez la rama gh-pages tiene solo el aviso en la raíz; luego, el respaldo en /respaldo/.
+      - name: Ver lo que está publicado
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          path: actual
+      - run: rm -rf actual/.git
+      - name: Montar el sitio conservando el respaldo actual
+        run: node scripts/montar-pages.mjs --actual actual --placeholder placeholder --salida publicar
+      - name: Publicar
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./publicar
+          publish_branch: gh-pages
+          force_orphan: true

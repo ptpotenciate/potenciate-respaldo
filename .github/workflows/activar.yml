@@ -15,14 +15,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/checkout@v5
         with:
           ref: data
           path: site
       - run: rm -rf site/.git
-      - name: Publicar el último temario sincronizado
+      - name: Montar el sitio (portero en la raíz, último temario sincronizado en /respaldo/)
+        run: node scripts/montar-pages.mjs --respaldo site --salida publicar
+      - name: Publicar
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          publish_dir: ./publicar
           publish_branch: gh-pages
           force_orphan: true

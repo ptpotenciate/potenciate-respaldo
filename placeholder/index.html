@@ -32,7 +32,7 @@
   <section class="tarjeta">
     <h1>Todo funciona con normalidad 🩷</h1>
     <p>Esta página solo se enciende si el aula tiene algún problema. Ahora mismo no hace falta: puedes entrar como siempre.</p>
-    <a class="boton" href="https://oposiciones.pt-potenciate.workers.dev/aula/">Ir a mi aula 📚</a>
+    <a class="boton" href="https://potenciateoposiciones.com/aula/">Ir a mi aula 📚</a>
     <p class="aviso" id="aviso">Guarda esta dirección en tus favoritos. Si algún día el aula no te carga, aquí podrás descargar tu material. 🔖</p>
   </section>
 
@@ -56,7 +56,9 @@ async function comprobar() {
   try {
     const respuesta = await fetch("index.html?" + Date.now(), { cache: "no-store" });
     if (!respuesta.ok) return;
-    if ((await respuesta.text()).includes('id="gate"')) {
+    // Se busca la etiqueta con ese id, no el texto suelto: este mismo archivo contiene el texto
+    // (aquí, en el script) y se reconocía a sí mismo como la página activa, recargándose sin parar.
+    if (/<[a-z][^>]*\bid="gate"/i.test(await respuesta.text())) {
       aviso.textContent = "Ya puedes descargar tu material. Abriendo… 🔓";
       // Se navega a una dirección con marca de tiempo en vez de recargar: GitHub Pages
       // manda "max-age=600", así que una recarga normal puede volver a servir la copia

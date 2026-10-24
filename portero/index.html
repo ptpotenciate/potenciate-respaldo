@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Entrar al aula · Poténciate</title>
+<style>
+  :root{--ink:#302326;--muted:#776c6f;--line:#e8e1de;--wash:#f8f5f1;--accent:#9b3d5c;--accent-dark:#6a263e;--soft:#f5e9ed}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wash);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}
+  .hoja{max-width:600px;margin:0 auto;padding:40px 18px 70px;text-align:center}
+  .logo img{width:min(240px,60%);height:auto}
+  .tarjeta{background:#fff;border:1px solid var(--line);border-radius:4px;padding:32px 24px;margin-top:26px;box-shadow:0 10px 34px rgba(48,35,38,.06)}
+  h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(1.4rem,5vw,1.9rem);margin:0;text-wrap:balance}
+  p{margin:14px 0 0;color:var(--muted);font-size:.95rem}
+  .boton{display:block;margin-top:14px;padding:13px 24px;border-radius:7px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;font-size:.97rem;border:0;width:100%;font-family:inherit;cursor:pointer}
+  .boton:hover{background:var(--accent-dark)}
+  .boton.suave{background:#fff;color:var(--accent-dark);border:1px solid var(--accent)}
+  .boton.suave:hover{background:var(--soft)}
+  .aviso{margin-top:20px;padding:12px 14px;border-radius:7px;background:var(--soft);color:var(--accent-dark);font-size:.87rem;text-align:left}
+  .opciones{margin-top:22px}
+  details{margin-top:18px;text-align:left;font-size:.9rem;color:var(--muted)}
+  summary{cursor:pointer;font-weight:700;color:var(--ink)}
+  details ul{margin:8px 0 0;padding-left:20px}
+  .pie{margin-top:30px;color:var(--muted);font-size:.84rem}
+  .pie a,.aparte a{color:var(--accent-dark)}
+  .aparte{margin-top:18px;font-size:.85rem}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="hoja">
+
+  <div class="logo"><img src="logo.png" alt="Poténciate" width="240" height="120"></div>
+
+  <section class="tarjeta" id="comprobando" role="status" aria-live="polite">
+    <h1>Un momento…</h1>
+    <p>Comprobando que el aula responde desde tu conexión.</p>
+    <noscript><p><a class="boton" href="https://potenciateoposiciones.com/aula/">Ir a mi aula 📚</a></p></noscript>
+  </section>
+
+  <section class="tarjeta" id="bien" hidden role="status" aria-live="polite">
+    <h1>Todo bien 🩷</h1>
+    <p>Entrando al aula…</p>
+    <a class="boton" href="https://potenciateoposiciones.com/aula/">Ir a mi aula 📚</a>
+  </section>
+
+  <section class="tarjeta" id="bloqueada" hidden role="alert">
+    <h1 id="titulo-bloqueo">Ahora mismo no llego al aula desde tu conexión</h1>
+    <p id="texto-bloqueo">Suele pasar durante los <strong>partidos de fútbol</strong>: tu compañía de internet bloquea durante el partido algunas direcciones de Cloudflare, el servicio que usa el aula, y con ellas caen muchas webs que no tienen nada que ver. <strong>No es peligroso ni le pasa nada a tus datos</strong>, y se arregla solo cuando termina el partido.</p>
+
+    <div class="opciones">
+      <a class="boton" href="respaldo/">Descargar mi material 📚</a>
+      <a class="boton suave" href="mailto:simulacros@potenciateoposiciones.com?subject=Simulacro">Entregar mi simulacro por correo ✉️</a>
+      <button class="boton suave" type="button" id="reintentar">Volver a comprobar</button>
+    </div>
+
+    <p class="aviso" id="estado-reintento">Sigo comprobando cada 30 segundos: en cuanto el aula responda, te llevo a ella. 🔄</p>
+
+    <details>
+      <summary>¿Y si quiero entrar al aula ahora mismo?</summary>
+      <ul>
+        <li>Conéctate desde otra red (la wifi de otro sitio, o los datos de otra compañía).</li>
+        <li>O instala la app gratuita <a href="https://one.one.one.one/" rel="noopener">1.1.1.1</a> de Cloudflare y actívala: esquiva el bloqueo. Cuando termines, la puedes desactivar.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Cómo entregar el simulacro por correo</summary>
+      <ul>
+        <li>Escribe a <a href="mailto:simulacros@potenciateoposiciones.com?subject=Simulacro">simulacros@potenciateoposiciones.com</a> desde el correo con el que tienes tu cuenta del aula.</li>
+        <li>En el asunto pon «Simulacro» y su número (por ejemplo, <em>Simulacro 3</em>).</li>
+        <li>Adjunta tu examen en PDF o con fotos de todas las hojas.</li>
+      </ul>
+    </details>
+
+    <p class="aviso"><strong>Ojo:</strong> esta página no te pide ninguna contraseña. Nunca escribas aquí la de tu aula. La página de material de respaldo te pedirá el correo con el que estás dada de alta y la <em>contraseña de emergencia</em> (que no es la de tu aula).</p>
+    <p class="aparte"><a id="forzar" href="https://potenciateoposiciones.com/aula/">Intentar entrar al aula de todos modos</a></p>
+  </section>
+
+  <p class="pie">
+    Guarda esta dirección en tus favoritos: es la que siempre te lleva al sitio que funciona. 🔖<br>
+    ¿Algo no va? Escríbenos a <a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a>. 🙌
+  </p>
+
+</div>
+<script>
+// Portero de Poténciate. Vive en GitHub Pages, fuera de Cloudflare, para que siga abriendo
+// cuando una operadora bloquea las direcciones de Cloudflare (partidos de fútbol).
+//
+// Pregunta al aula si responde. Pide un recurso que Cloudflare contesta por sí mismo
+// (/cdn-cgi/trace: no llega a la web ni gasta nada del Worker) con modo «no-cors»: no hace
+// falta leer la respuesta, solo saber si hay conexión. Si la operadora bloquea, la petición
+// falla o se queda colgada, y entonces se enseña qué hacer. Nunca pide ni lee contraseñas.
+const AULA = "https://potenciateoposiciones.com/aula/";
+const SONDA = "https://potenciateoposiciones.com/cdn-cgi/trace";
+const ESPERA_MS = 8000;
+const REINTENTO_MS = 30000;
+
+const $ = (id) => document.getElementById(id);
+const vistas = ["comprobando", "bien", "bloqueada"];
+function ver(nombre) { for (const v of vistas) $(v).hidden = v !== nombre; }
+
+async function aulaResponde() {
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), ESPERA_MS);
+  try {
+    await fetch(`${SONDA}?t=${Date.now()}`, { mode: "no-cors", cache: "no-store", credentials: "omit", signal: control.signal });
+    return true;
+  } catch (error) {
+    return false;
+  } finally {
+    clearTimeout(corte);
+  }
+}
+
+function mostrarBloqueo() {
+  const sinInternet = navigator.onLine === false;
+  $("titulo-bloqueo").textContent = sinInternet ? "Parece que no tienes conexión a internet" : "Ahora mismo no llego al aula desde tu conexión";
+  $("texto-bloqueo").hidden = sinInternet;
+  $("estado-reintento").textContent = sinInternet
+    ? "Cuando vuelvas a tener conexión, te llevo al aula. 🔄"
+    : "Sigo comprobando cada 30 segundos: en cuanto el aula responda, te llevo a ella. 🔄";
+  ver("bloqueada");
+}
+
+let ocupado = false;
+async function comprobar() {
+  if (ocupado) return;
+  ocupado = true;
+  try {
+    if (await aulaResponde()) {
+      ver("bien");
+      window.location.replace(AULA);
+      return;
+    }
+    mostrarBloqueo();
+  } finally {
+    ocupado = false;
+  }
+}
+
+// «?demo=bloqueada» enseña la pantalla del bloqueo sin esperar a un partido (para probarla o
+// enseñársela a alguien). No hace ninguna comprobación.
+if (new URLSearchParams(window.location.search).get("demo") === "bloqueada") {
+  mostrarBloqueo();
+} else {
+  comprobar();
+  setInterval(() => { if (!$("bloqueada").hidden) comprobar(); }, REINTENTO_MS);
+  window.addEventListener("online", comprobar);
+}
+$("reintentar").addEventListener("click", () => { ver("comprobando"); comprobar(); });
+</script>
+</body>
+</html>
