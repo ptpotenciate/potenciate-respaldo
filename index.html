@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Poténciate · Acceso de emergencia</title>
+<style>
+  :root{--ink:#302326;--muted:#776c6f;--line:#e8e1de;--wash:#f8f5f1;--accent:#9b3d5c;--accent-dark:#6a263e;--soft:#f5e9ed}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wash);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.6}
+  .hoja{max-width:680px;margin:0 auto;padding:28px 18px 70px}
+  .logo{text-align:center;margin-bottom:22px}
+  .logo img{width:min(260px,62%);height:auto;display:inline-block}
+  .cabecera{background:linear-gradient(150deg,var(--accent-dark),var(--accent) 70%,#b5567a);color:#fff;border-radius:4px;padding:30px 24px;box-shadow:0 14px 40px rgba(106,38,62,.2)}
+  .cabecera h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(1.5rem,5vw,2.1rem);line-height:1.2;margin:10px 0 0;text-wrap:balance}
+  .cabecera p{margin:12px 0 0;font-size:.97rem;color:rgba(255,255,255,.94)}
+  .tarjeta{background:#fff;border:1px solid var(--line);border-radius:4px;padding:22px;margin-top:18px}
+  .tarjeta h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:1.15rem;margin:0 0 6px}
+  .tarjeta p{margin:0;color:var(--muted);font-size:.9rem}
+  label{display:block;font-size:.74rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  input{width:100%;padding:13px 14px;font-size:1.05rem;font-family:inherit;border:1px solid #d9d0cc;border-radius:7px;background:#fff;color:inherit}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .principal{margin-top:12px;width:100%;padding:13px 18px;font-size:1rem;font-family:inherit;font-weight:700;border:0;border-radius:7px;background:var(--accent);color:#fff;cursor:pointer}
+  .principal:hover{background:var(--accent-dark)}
+  .principal:disabled{opacity:.6;cursor:wait}
+  .estado{margin:12px 0 0;font-size:.9rem;min-height:1.2em}
+  .estado.mal{color:#9b2f3f;font-weight:600}
+  .nota{margin-top:16px;padding:12px 14px;border-radius:7px;background:var(--soft);color:var(--accent-dark);font-size:.86rem;line-height:1.55}
+  .grupo{margin:26px 0 0}
+  .grupo h3{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:1.05rem;margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .fila{display:flex;flex-wrap:wrap;gap:8px}
+  .archivo{flex:1 1 auto;min-width:130px;padding:11px 14px;font-size:.92rem;font-family:inherit;text-align:left;border:1px solid var(--line);border-radius:7px;background:#fff;color:inherit;cursor:pointer}
+  .archivo:hover{border-color:var(--accent);color:var(--accent-dark)}
+  .archivo:disabled{opacity:.65;cursor:wait}
+  .pie{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.84rem}
+  .pie a{color:var(--accent-dark)}
+  .vacio{margin:22px 0 0;padding:18px;border:1px dashed var(--line);border-radius:7px;color:var(--muted);text-align:center;font-size:.92rem}
+  .vuelve{margin:0 0 18px;padding:14px 16px;border-radius:7px;background:#e3f1e8;color:#2f6f55;text-align:center;font-size:.95rem}
+  .vuelve a{display:block;margin-top:10px;padding:12px 18px;border-radius:7px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="hoja">
+
+  <div class="logo"><img src="logo.png" alt="Poténciate" width="260" height="130"></div>
+
+  <div id="aula-vuelve" class="vuelve" role="status" hidden>
+    <strong>¡El aula ya funciona desde tu conexión! 🎉</strong>
+    <a href="https://potenciateoposiciones.com/aula/">Volver al aula</a>
+  </div>
+
+  <header class="cabecera">
+    <h1>Sentimos mucho las molestias 🩷</h1>
+    <p>Ahora mismo no se puede entrar al aula desde tu conexión (puede ser un problema del aula o un bloqueo de tu compañía durante un partido de fútbol). Mientras tanto, aquí tienes tu material para seguir estudiando sin perder el ritmo. 💪 En cuanto el aula vuelva a responder, aquí arriba te saldrá un aviso para volver.</p>
+  </header>
+
+  <section class="tarjeta">
+    <h2>Entra con tus datos 🔑</h2>
+    <p>Usa el mismo correo con el que estás dada de alta en el aula, y la contraseña de emergencia que te hemos enviado. Si no la encuentras, escríbenos y te la damos al momento.</p>
+    <form id="gate" style="margin-top:16px">
+      <label for="correo">Tu correo</label>
+      <input id="correo" type="email" autocomplete="email" inputmode="email" required placeholder="el de tu aula">
+      <label for="clave" style="margin-top:14px">Contraseña de emergencia</label>
+      <input id="clave" type="password" autocomplete="current-password" required>
+      <button type="submit" class="principal">Ver mi material</button>
+      <p class="estado" id="estado" role="status"></p>
+    </form>
+    <p class="nota">🔒 Este acceso es personal: solo funciona con tu correo, así que la contraseña no le sirve a nadie más.<br>📄 Está todo el material publicado: temarios, esquemas, ejercicios, soluciones y simulacros.<br>🎬 Los vídeos no están aquí porque no caben, pero los tendrás de vuelta en cuanto el aula funcione.</p>
+  </section>
+
+  <div id="lista" hidden></div>
+
+  <p class="pie">
+    Material actualizado el 31 de octubre de 2026 a las 11:12.<br>
+    ¿Algo no te funciona o no tienes la contraseña? Escríbenos a
+    <a href="mailto:pt.potenciate@gmail.com">pt.potenciate@gmail.com</a> y te ayudamos enseguida. 🙌
+  </p>
+
+</div>
+<script>
+// Cada 45 segundos se comprueba, desde el propio dispositivo, si el aula ya responde. Si sí,
+// sale un aviso arriba con el botón para volver (no se cambia de página sola: puede estar a
+// medias de una descarga). Se pide /cdn-cgi/trace, que contesta Cloudflare sin tocar el Worker,
+// en modo «no-cors»: solo importa si hay conexión, no lo que devuelve.
+const SONDA_AULA = "https://potenciateoposiciones.com/cdn-cgi/trace";
+async function aulaResponde() {
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), 8000);
+  try {
+    await fetch(SONDA_AULA + "?t=" + Date.now(), { mode: "no-cors", cache: "no-store", credentials: "omit", signal: control.signal });
+    return true;
+  } catch (error) {
+    return false;
+  } finally {
+    clearTimeout(corte);
+  }
+}
+async function vigilarAula() {
+  if (document.hidden) return;
+  if (await aulaResponde()) document.querySelector("#aula-vuelve").hidden = false;
+}
+vigilarAula();
+setInterval(vigilarAula, 45000);
+
+const SALT = "/EhBZ/uSgInpNzTzIROlbw==";
+const ITERATIONS = 600000;
+const MANIFEST = "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";
+// Un sobre por alumna. Cada uno guarda la clave del material, cifrada con el correo de esa
+// alumna más la contraseña. No hay ningún correo aquí: solo bytes, todos iguales por fuera.
+const SOBRES = ["18FrDD0L8Qq6Dp5YZdhRe5dIFo5UwH3f9b+axiJftnSxZ3P/E1BFkdaoWEO2Ee+5ipUZbsa4QWo0NTZI","qIiUssroU7O+0+PDaamVQldLEzjFNpt668y1w9sdgd9mb6UlMotKZnYeFMI84gF3fuELGdSSwK/KwC2u","GX4pYJQuq2UqOvcothroKqca75f08hWdAvwjHdCywZHsX6fLFwP6M2aB4PGRMR9a6HrSC/sj+WDkNGdC","zSLSeIny5hYzH5q4evVPqx+6i/8WJcgEdPObBhIgoNAXVYjz59/JizQ3noYZp2P6XRGVjJoK+7uP/xpY","2kL/9GKY2XJiEqJgZ2G/Hl+vfg0f0mWWpvngcj4rkowKS18rHa33s1BclJo8UyOZ1yuNehy/nZeEByl5","zuR5fVsf1vRagbgky72zSnE7G9IDicjIUZtrgwSrgyA31EseIFQGk9196vcj91uPcD/wM6irM1eCnO69","fpB1qYIR3KSwDkp+JLev8mtPqp65JyHw+ZxSqUQBh0svGyPKCFoSXshRT1papfWASLEVB08RAxVTD2S0","8wQSjcHk9Nkp1Wq5PHhhmn1PfBhL6Ce2kPGqrgyRP7Dji6HQom7nZ7U6l5iOvq4RDYev3tPrLmrC3uUg","s1NZm0dh49syT4zcBoMVNI7CntY6xwp4wkzihBKiFyv/x/a0x7WMtQvU0GalkY9oGkn4B+S4e9rE2yTM","DDEeEtcXmH5mWi4RrrObBKJoI2RQrJvqQsMOOytUIa5HO2J2yqm+Id4nl7g2FO3uYsBjjauRh9Im1whv","A5moD0RqI5hxP1CXQjgIU5OVLblf3Znb56hoKqCeVBrrBm1Am1FMW++teFLOpLERzEhmsAG3dMeqAbhv","3E1+hRgU1EJiObyKIIKcNa5zlbZoJD4VWZuo/jC3s3YZrr0umaSNzKJOvWY0tkAJepF5u0MhXeyvB7Iu"];
+
+const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+const decrypt = (key, data) => crypto.subtle.decrypt({ name: "AES-GCM", iv: data.slice(0, 12) }, key, data.slice(12));
+
+// La clave sale del correo y la contraseña juntos, así que es distinta para cada alumna.
+async function claveDeAlumna(correo, password) {
+  const frase = correo.trim().toLowerCase() + "\n" + password;
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(frase), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: bytes(SALT), iterations: ITERATIONS, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+}
+
+// Se prueban todos los sobres con esa clave: el que se abra es el suyo, y dentro está la
+// clave del material. Abrir un sobre es instantáneo, así que probar diez no se nota.
+async function abrirSobre(clavePersonal) {
+  for (const sobre of SOBRES) {
+    try {
+      const crudo = await decrypt(clavePersonal, bytes(sobre));
+      return crypto.subtle.importKey("raw", crudo, { name: "AES-GCM" }, false, ["decrypt"]);
+    } catch (error) {
+      // Ese sobre es de otra alumna: se prueba el siguiente.
+    }
+  }
+  return null;
+}
+
+async function download(key, item, button) {
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Descargando…";
+  try {
+    const response = await fetch(item.file, { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const plain = await decrypt(key, new Uint8Array(await response.arrayBuffer()));
+    const url = URL.createObjectURL(new Blob([plain], { type: item.type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = item.name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    button.textContent = "Descargado ✓";
+    setTimeout(() => { button.textContent = original; }, 4000);
+  } catch (error) {
+    // Cada sincronización cifra con una sal nueva. Si esta página lleva abierta desde antes
+    // de la última, su clave ya no vale para los archivos de ahora y hay que recargar.
+    const caducada = error instanceof DOMException || /OperationError/i.test(String(error));
+    button.textContent = caducada ? "Recarga la página 🔄" : "No se pudo, inténtalo otra vez";
+    setTimeout(() => { button.textContent = original; }, 8000);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function render(key, items) {
+  const list = document.querySelector("#lista");
+  list.hidden = false;
+  if (!items.length) {
+    list.innerHTML = '<p class="vacio">Todavía no hay material publicado. En cuanto lo haya, aparecerá aquí. 🌱</p>';
+    return;
+  }
+
+  const titulo = document.createElement("h2");
+  titulo.style.cssText = "font-family:Georgia,serif;font-weight:500;font-size:1.4rem;margin:32px 0 0";
+  titulo.textContent = "Tu material 📚";
+  list.append(titulo);
+
+  // Agrupado por tema, bloque de sintaxis o simulacro: con todo publicado son muchos
+  // archivos y una lista seguida no se podría recorrer.
+  let grupoActual = "";
+  let contenedor = null;
+  for (const item of items) {
+    if (item.grupo !== grupoActual) {
+      grupoActual = item.grupo;
+      const bloque = document.createElement("section");
+      bloque.className = "grupo";
+      const cabecera = document.createElement("h3");
+      cabecera.textContent = grupoActual;
+      contenedor = document.createElement("div");
+      contenedor.className = "fila";
+      bloque.append(cabecera, contenedor);
+      list.append(bloque);
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "archivo";
+    button.textContent = "⬇ " + item.label;
+    button.addEventListener("click", () => download(key, item, button));
+    contenedor.append(button);
+  }
+}
+
+document.querySelector("#gate").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const status = document.querySelector("#estado");
+  const submit = event.target.querySelector("button");
+  submit.disabled = true;
+  status.className = "estado";
+  status.textContent = "Comprobando… 🔓";
+  try {
+    const clavePersonal = await claveDeAlumna(document.querySelector("#correo").value, document.querySelector("#clave").value.trim());
+    const key = await abrirSobre(clavePersonal);
+    if (!key) throw new Error("sin acceso");
+    const items = JSON.parse(new TextDecoder().decode(await decrypt(key, bytes(MANIFEST))));
+    event.target.hidden = true;
+    render(key, items);
+  } catch (error) {
+    status.className = "estado mal";
+    // No se puede saber cuál de las dos cosas falla, y tampoco conviene decirlo: así nadie
+    // averigua qué correos están dados de alta probándolos uno a uno.
+    status.textContent = "No hemos podido entrar. Comprueba que el correo es el mismo de tu aula y que la contraseña está bien escrita. Si sigue sin funcionar, escríbenos. 💬";
+    submit.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
